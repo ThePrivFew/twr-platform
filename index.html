@@ -983,7 +983,7 @@ function navTo(page) {
     stories:   renderStories,
     stats:     renderStats,
     'my-overview': renderClientOverview,
-    'my-brief':    renderMyBrief,
+    'my-brief':    renderMyBriefEnhanced,
     'my-materials':renderMyMaterials,
     'my-journal':  renderMyJournal,
     'my-story':    renderMyStory,
@@ -1895,6 +1895,16 @@ function handleLocationChange(sel) {
   var c = document.getElementById('lm-location-custom');
   if (c) { c.style.display = sel.value === 'Other' ? 'block' : 'none'; if (sel.value === 'Other') c.focus(); }
 }
+async function loadProjectsThenMobileLog() {
+  if (!state.projects.length) {
+    try {
+      var s = await window.FB.getDocs(window.FB.collection(window.FB.db, 'projects'));
+      state.projects = s.docs.map(function(d) { return Object.assign({id:d.id}, d.data()); });
+    } catch(e) { toast('Error: ' + e.message); }
+  }
+  openMobileLogSheet('');
+}
+
 async function loadProjectsThenLog() {
   if (!state.projects.length) {
     try {
@@ -1918,6 +1928,16 @@ function handleLocationChange(sel) {
   var c = document.getElementById('lm-location-custom');
   if (c) { c.style.display = sel.value === 'Other' ? 'block' : 'none'; if (sel.value === 'Other') c.focus(); }
 }
+async function loadProjectsThenMobileLog() {
+  if (!state.projects.length) {
+    try {
+      var s = await window.FB.getDocs(window.FB.collection(window.FB.db, 'projects'));
+      state.projects = s.docs.map(function(d) { return Object.assign({id:d.id}, d.data()); });
+    } catch(e) { toast('Error: ' + e.message); }
+  }
+  openMobileLogSheet('');
+}
+
 async function loadProjectsThenLog() {
   if (!state.projects.length) {
     try {
@@ -1994,7 +2014,8 @@ async function openClientSheet(clientId) {
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-timber btn-sm" onclick="openLogMaterialSheet()">Log Material</button>
         <button class="btn btn-sm" onclick="openAddJournalEntryForClient('${client.email}','${client.name}')">Add Journal Entry</button>
-        <button class="btn btn-sm" onclick="upgradeClientTier('${clientId}','paid')">Upgrade to Paid</button>
+        <button class="btn btn-sm" onclick="closeSheetDirect();openEditClientSheet('${clientId}')">Edit Client</button>
+        <button class="btn btn-sm" onclick="openInviteClientSheet('${clientId}')">Send Invite</button>
       </div>
     </div>`);
 }
@@ -2018,7 +2039,8 @@ async function openMaterialSheet(materialId) {
       ${mat.videoLinks ? `<div class="info-row"><div class="info-key">Media</div><div class="info-val"><a href="${mat.videoLinks}" target="_blank" style="color:var(--timber)">View →</a></div></div>` : ''}
       <div class="info-row"><div class="info-key">Logged</div><div class="info-val">${fmtDate(mat.createdAt)}</div></div>
       <div class="divider"></div>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-timber btn-sm" onclick="closeSheetDirect();openEditMaterialSheet('${mat.id}')">Edit Material</button>
         ${mat.signoffStatus!=='Approved'?`<button class="btn btn-moss btn-sm" onclick="approveSignoff('${mat.id}');closeSheetDirect()">Approve Signoff</button>`:''}
         <button class="btn btn-sm btn-danger" onclick="deleteMaterial('${mat.id}')">Delete</button>
       </div>
@@ -2053,7 +2075,8 @@ async function openProjectSheet(projectId) {
       <div class="divider"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-timber btn-sm" onclick="closeSheetDirect();openLogMaterialSheet('${projectId}')">Log Material</button>
-        <button class="btn btn-sm" onclick="updateProjectProgress('${projectId}',${proj.progress||5})">Update Progress</button>
+        <button class="btn btn-sm" onclick="closeSheetDirect();openEditProjectSheet('${projectId}')">Edit Project</button>
+        <button class="btn btn-sm" onclick="updateProjectProgress('${projectId}',${proj.progress||5})">Update %</button>
       </div>
     </div>`);
 }
@@ -2330,6 +2353,191 @@ async function handleSignOut() {
 // When Dave first signs in, run this once from browser console:
 // await window.FB.updateDoc(window.FB.doc(window.FB.db,'users', window.currentUser.uid), {role:'admin',name:'Dave'})
 // Then refresh the page.
+// ─── EDIT CLIENT ─────────────────────────────────────────────────────────────
+async function openEditClientSheet(clientId) {
+  const client = state.clients.find(c => c.id === clientId) || {};
+  openSheet('<div class="sheet-head"><div><div class="sheet-title">Edit Client</div></div><button class="sheet-close" onclick="closeSheetDirect()">×</button></div><div class="sheet-body"><div class="form-group"><label class="form-label">Full Name</label><input class="form-input" id="ec-name" value="' + (client.name||'') + '"></div><div class="form-group"><label class="form-label">Email</label><input class="form-input" id="ec-email" type="email" value="' + (client.email||'') + '"></div><div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="ec-phone" value="' + (client.phone||'') + '"></div><div class="form-group"><label class="form-label">Property Address</label><input class="form-input" id="ec-address" value="' + (client.address||'') + '"></div><div class="form-group"><label class="form-label">Subscription Tier</label><select class="form-select" id="ec-tier"><option value="free"' + (client.subscriptionTier!=='paid'?' selected':'') + '>Free</option><option value="paid"' + (client.subscriptionTier==='paid'?' selected':'') + '>Paid</option></select></div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="ec-notes">' + (client.notes||'') + '</textarea></div><div style="display:flex;gap:8px;margin-top:4px"><button class="btn btn-timber btn-full" onclick="saveEditClient(\'' + clientId + '\')">Save Changes</button><button class="btn btn-danger" onclick="deleteClient(\'' + clientId + '\')">Delete Client</button></div></div>');
+}
+
+async function saveEditClient(clientId) {
+  try {
+    await window.FB.updateDoc(window.FB.doc(window.FB.db,'clients',clientId), {
+      name: document.getElementById('ec-name').value.trim(),
+      email: document.getElementById('ec-email').value.trim(),
+      phone: document.getElementById('ec-phone').value.trim(),
+      address: document.getElementById('ec-address').value.trim(),
+      subscriptionTier: document.getElementById('ec-tier').value,
+      notes: document.getElementById('ec-notes').value.trim(),
+    });
+    closeSheetDirect();
+    toast('Client updated ✓');
+    renderClients();
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+async function deleteClient(clientId) {
+  if (!confirm('Delete this client and all their data? This cannot be undone.')) return;
+  try {
+    await window.FB.deleteDoc(window.FB.doc(window.FB.db,'clients',clientId));
+    closeSheetDirect();
+    toast('Client deleted');
+    renderClients();
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+// ─── EDIT PROJECT ─────────────────────────────────────────────────────────────
+async function openEditProjectSheet(projectId) {
+  const proj = state.projects.find(p => p.id === projectId) || {};
+  openSheet('<div class="sheet-head"><div><div class="sheet-title">Edit Project</div></div><button class="sheet-close" onclick="closeSheetDirect()">×</button></div><div class="sheet-body"><div class="form-group"><label class="form-label">Project Name</label><input class="form-input" id="ep-name" value="' + (proj.name||'') + '"></div><div class="form-group"><label class="form-label">Address</label><input class="form-input" id="ep-address" value="' + (proj.address||'') + '" oninput="updateSheetMap()"></div><div id="sheetMapPreview" style="margin-bottom:14px"></div><div class="form-row"><div class="form-group"><label class="form-label">Type</label><select class="form-select" id="ep-type"><option' + (proj.type==='Full Circle Design (FCD)'?' selected':'') + '>Full Circle Design (FCD)</option><option' + (proj.type==='Material Library'?' selected':'') + '>Material Library</option><option' + (proj.type==='Furniture Commission'?' selected':'') + '>Furniture Commission</option><option' + (proj.type==='Heritage Restoration'?' selected':'') + '>Heritage Restoration</option><option' + (proj.type==='Residential Renovation'?' selected':'') + '>Residential Renovation</option><option' + (proj.type==='Commercial Fitout'?' selected':'') + '>Commercial Fitout</option><option' + (proj.type==='Other'?' selected':'') + '>Other</option></select></div><div class="form-group"><label class="form-label">Status</label><select class="form-select" id="ep-status"><option' + (proj.status==='Active'?' selected':'') + '>Active</option><option' + (proj.status==='On Hold'?' selected':'') + '>On Hold</option><option' + (proj.status==='Complete'?' selected':'') + '>Complete</option></select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Progress %</label><input class="form-input" type="number" id="ep-progress" min="0" max="100" value="' + (proj.progress||5) + '"></div><div class="form-group"><label class="form-label">Quoted Value ($)</label><input class="form-input" id="ep-value" value="' + (proj.quotedValue||'') + '"></div></div><div style="display:flex;gap:8px;margin-top:4px"><button class="btn btn-timber btn-full" onclick="saveEditProject(\'' + projectId + '\')">Save Changes</button><button class="btn btn-danger" onclick="deleteProject(\'' + projectId + '\')">Delete Project</button></div></div>');
+}
+
+async function saveEditProject(projectId) {
+  try {
+    await window.FB.updateDoc(window.FB.doc(window.FB.db,'projects',projectId), {
+      name: document.getElementById('ep-name').value.trim(),
+      address: document.getElementById('ep-address').value.trim(),
+      type: document.getElementById('ep-type').value,
+      status: document.getElementById('ep-status').value,
+      progress: parseInt(document.getElementById('ep-progress').value)||5,
+      quotedValue: document.getElementById('ep-value').value.trim(),
+    });
+    closeSheetDirect();
+    toast('Project updated ✓');
+    renderAllProjects();
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+async function deleteProject(projectId) {
+  if (!confirm('Delete this project? Materials will remain in the library.')) return;
+  try {
+    await window.FB.deleteDoc(window.FB.doc(window.FB.db,'projects',projectId));
+    closeSheetDirect();
+    toast('Project deleted');
+    renderAllProjects();
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+// ─── EDIT MATERIAL ───────────────────────────────────────────────────────────
+async function openEditMaterialSheet(materialId) {
+  const mat = state.materials.find(m => m.id === materialId) || {};
+  openSheet('<div class="sheet-head"><div><div class="sheet-title">Edit Material</div></div><button class="sheet-close" onclick="closeSheetDirect()">×</button></div><div class="sheet-body"><div class="form-group"><label class="form-label">Material Name</label><input class="form-input" id="em-name" value="' + (mat.name||'') + '"></div><div class="form-row"><div class="form-group"><label class="form-label">Type</label><select class="form-select" id="em-type"><option' + (mat.type==='Timber'?' selected':'') + '>Timber</option><option' + (mat.type==='Masonry'?' selected':'') + '>Masonry</option><option' + (mat.type==='Metal'?' selected':'') + '>Metal</option><option' + (mat.type==='Glass'?' selected':'') + '>Glass</option><option' + (mat.type==='Fixtures & fittings'?' selected':'') + '>Fixtures & fittings</option><option' + (mat.type==='Other'?' selected':'') + '>Other</option></select></div><div class="form-group"><label class="form-label">Condition</label><select class="form-select" id="em-condition"><option' + (mat.condition==='Excellent'?' selected':'') + '>Excellent</option><option' + (mat.condition==='Good'?' selected':'') + '>Good</option><option' + (mat.condition==='Fair'?' selected':'') + '>Fair</option><option' + (mat.condition==='Poor'?' selected':'') + '>Poor</option></select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Status</label><select class="form-select" id="em-status"><option' + (mat.status==='Available'?' selected':'') + '>Available</option><option' + (mat.status==='Processing'?' selected':'') + '>Processing</option><option' + (mat.status==='Allocated'?' selected':'') + '>Allocated</option><option' + (mat.status==='Storage'?' selected':'') + '>Storage</option></select></div><div class="form-group"><label class="form-label">Signoff</label><select class="form-select" id="em-signoff"><option' + (mat.signoffStatus==='Pending'?' selected':'') + ' value="Pending">Pending</option><option' + (mat.signoffStatus==='Approved'?' selected':'') + ' value="Approved">Approved</option><option' + (mat.signoffStatus==='Flagged'?' selected':'') + ' value="Flagged">Flagged</option></select></div></div><div class="form-group"><label class="form-label">Location in Structure</label><input class="form-input" id="em-location" value="' + (mat.locationInStructure||'') + '"></div><div class="form-group"><label class="form-label">Dimensions / Quantity</label><input class="form-input" id="em-dims" value="' + (mat.dimensions||'') + '"></div><div class="form-group"><label class="form-label">Future Use (comma separated)</label><input class="form-input" id="em-futureuse" value="' + ((mat.futureUse||[]).join(', ')) + '"></div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="em-notes">' + (mat.notes||'') + '</textarea></div><div style="display:flex;gap:8px;margin-top:4px"><button class="btn btn-timber btn-full" onclick="saveEditMaterial(\'' + materialId + '\')">Save Changes</button><button class="btn btn-danger" onclick="deleteMaterial(\'' + materialId + '\')">Delete</button></div></div>');
+}
+
+async function saveEditMaterial(materialId) {
+  const futureUse = document.getElementById('em-futureuse').value.split(',').map(s=>s.trim()).filter(Boolean);
+  try {
+    await window.FB.updateDoc(window.FB.doc(window.FB.db,'materials',materialId), {
+      name: document.getElementById('em-name').value.trim(),
+      type: document.getElementById('em-type').value,
+      condition: document.getElementById('em-condition').value,
+      status: document.getElementById('em-status').value,
+      signoffStatus: document.getElementById('em-signoff').value,
+      locationInStructure: document.getElementById('em-location').value.trim(),
+      dimensions: document.getElementById('em-dims').value.trim(),
+      futureUse: futureUse,
+      notes: document.getElementById('em-notes').value.trim(),
+    });
+    closeSheetDirect();
+    toast('Material updated ✓');
+    if (state.currentPage === 'materials') renderMaterialLibrary();
+    else if (state.currentPage === 'dashboard') renderAdminDashboard();
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+// ─── CLIENT INVITE ────────────────────────────────────────────────────────────
+function openInviteClientSheet(clientId) {
+  const client = state.clients.find(c => c.id === clientId) || {};
+  const portalUrl = 'https://theprivfew.github.io/twr-platform';
+  const subject = encodeURIComponent('Your Wattle Road client portal is ready');
+  const body = encodeURIComponent('Hi ' + (client.name ? client.name.split(' ')[0] : 'there') + ',\n\nYour Wattle Road client portal is now set up and ready for you.\n\nYou can access it here:\n' + portalUrl + '\n\nTo sign in, you\'ll need to create a password for your account using this email address: ' + client.email + '\n\nOnce you\'re in, you\'ll be able to:\n- View your catalogued materials\n- Submit your project brief\n- Follow your project\'s progress\n- Access your provenance record when it\'s ready\n\nIf you have any questions, just reply to this email.\n\nDave\nThe Wattle Road\nthewattleroad.com.au');
+  openSheet('<div class="sheet-head"><div><div class="sheet-title">Invite Client</div><div style="font-size:11px;color:var(--stone)">' + (client.name||client.email||'') + '</div></div><button class="sheet-close" onclick="closeSheetDirect()">×</button></div><div class="sheet-body"><div style="background:var(--cream);border-radius:var(--r);padding:14px 16px;margin-bottom:16px"><div style="font-size:12px;font-weight:500;color:var(--bark);margin-bottom:6px">Portal URL</div><div style="font-size:12px;color:var(--stone);word-break:break-all">' + portalUrl + '</div></div><div style="font-size:13px;color:var(--stone);line-height:1.6;margin-bottom:16px">Send ' + (client.name||'the client') + ' an invitation to access their portal. They\'ll use <strong>' + (client.email||'their email') + '</strong> to sign in — they\'ll need to use the Request Access option to set a password.</div><div style="display:flex;flex-direction:column;gap:8px"><a href="mailto:' + (client.email||'') + '?subject=' + subject + '&body=' + body + '" class="btn btn-timber btn-full" style="text-align:center;text-decoration:none">Open in Mail App</a><button class="btn btn-full" onclick="copyInviteLink()">Copy Portal Link</button></div><div class="divider"></div><div style="font-size:12px;color:var(--stone);line-height:1.6"><strong style="color:var(--bark)">How it works:</strong> The client goes to the portal URL and clicks Request Access to create a password for their email. Once they\'re in, they\'ll see their project automatically because it\'s linked to their email address.</div></div>');
+}
+
+function copyInviteLink() {
+  navigator.clipboard.writeText('https://theprivfew.github.io/twr-platform').then(function() { toast('Portal link copied!'); });
+}
+
+// ─── MOBILE MATERIAL LOGGING ──────────────────────────────────────────────────
+function openMobileLogSheet(projectId) {
+  var projOptions = state.projects.map(function(p) {
+    return '<option value="' + p.id + '"' + (p.id === projectId ? ' selected' : '') + '>' + p.name + '</option>';
+  }).join('');
+
+  openSheet('<div class="sheet-head"><div><div class="sheet-title">Quick Log</div><div style="font-size:11px;color:var(--stone)">Field logging — fast entry</div></div><button class="sheet-close" onclick="closeSheetDirect()">×</button></div><div class="sheet-body"><div class="form-group"><label class="form-label">What did you find?</label><input class="form-input" id="ml-name" placeholder="e.g. Spotted Gum floorboards" style="font-size:16px;padding:12px" autofocus></div><div class="form-group"><label class="form-label">Project</label><select class="form-select" id="ml-project" style="font-size:16px;padding:12px"><option value="">Select project...</option>' + projOptions + '</select></div><div class="form-row"><div class="form-group"><label class="form-label">Type</label><select class="form-select" id="ml-type" style="font-size:16px;padding:10px"><option>Timber</option><option>Masonry</option><option>Metal</option><option>Glass</option><option>Fixtures & fittings</option><option>Other</option></select></div><div class="form-group"><label class="form-label">Condition</label><select class="form-select" id="ml-condition" style="font-size:16px;padding:10px"><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div></div><div class="form-group"><label class="form-label">Location in structure</label><input class="form-input" id="ml-location" placeholder="e.g. Kitchen, Roof, Hallway" style="font-size:16px;padding:12px"></div><div class="form-group"><label class="form-label">Quick notes</label><textarea class="form-textarea" id="ml-notes" placeholder="Species, dimensions, anything notable..." style="font-size:16px;min-height:80px"></textarea></div><div class="form-group"><label class="form-label">Photo / Video Links</label><input class="form-input" id="ml-media" placeholder="Paste Google Photos, Drive or YouTube link..." style="font-size:16px;padding:12px"></div><div class="form-group"><label class="form-label">Future Use Ideas</label><input class="form-input" id="ml-futureuse" placeholder="e.g. Dining table, Bench seat" style="font-size:16px;padding:12px"></div><button class="btn btn-timber btn-full" style="padding:14px;font-size:15px;margin-top:8px" onclick="saveMobileLog()">&#10003; Save Material</button></div>');
+}
+
+async function saveMobileLog() {
+  var name = document.getElementById('ml-name').value.trim();
+  if (!name) { toast('Enter a material name'); return; }
+  var projEl = document.getElementById('ml-project');
+  var projId = projEl.value;
+  var projName = projEl.options[projEl.selectedIndex] ? projEl.options[projEl.selectedIndex].text : '';
+  var futureUse = document.getElementById('ml-futureuse').value.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+  try {
+    await window.FB.addDoc(window.FB.collection(window.FB.db,'materials'), {
+      name: name,
+      type: document.getElementById('ml-type').value,
+      condition: document.getElementById('ml-condition').value,
+      projectId: projId,
+      projectName: projName,
+      clientEmail: '',
+      locationInStructure: document.getElementById('ml-location').value.trim(),
+      status: 'Available',
+      signoffStatus: 'Pending',
+      futureUse: futureUse,
+      notes: document.getElementById('ml-notes').value.trim(),
+      videoLinks: document.getElementById('ml-media').value.trim(),
+      createdAt: window.FB.serverTimestamp(),
+      createdBy: window.currentUser ? window.currentUser.uid : '',
+    });
+    toast('Material saved ✓');
+    document.getElementById('ml-name').value = '';
+    document.getElementById('ml-location').value = '';
+    document.getElementById('ml-notes').value = '';
+    document.getElementById('ml-media').value = '';
+    document.getElementById('ml-futureuse').value = '';
+    document.getElementById('ml-name').focus();
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+// ─── ENHANCED BRIEF SUBMISSION WITH FILE LINKS ─────────────────────────────
+function renderMyBriefEnhanced() {
+  document.getElementById('topbarRight').innerHTML = '';
+  document.getElementById('mainContent').innerHTML = '<div class="fu"><div class="panel"><div class="panel-head"><div class="panel-title">Submit Your Project Brief</div></div><div class="panel-body"><p style="font-size:13px;color:var(--stone);line-height:1.7;margin-bottom:20px">Tell us about your property and what you have. Dave will review and reach out to arrange a site visit.</p><div class="form-row"><div class="form-group"><label class="form-label">Property Address</label><input class="form-input" id="bf-address" placeholder="Full property address" oninput="updateMapPreview()"></div><div class="form-group"><label class="form-label">Property Type</label><select class="form-select" id="bf-proptype"><option>Federation / Edwardian (pre-1920)</option><option>Interwar (1920-1945)</option><option>Post-war (1945-1970)</option><option>Contemporary</option><option>Rural / Farm</option><option>Industrial / Commercial</option><option>Heritage Listed</option><option>Other</option></select></div></div><div id="mapPreview" style="margin-bottom:16px"></div><div class="form-group"><label class="form-label">What materials do you think you have?</label><textarea class="form-textarea" id="bf-materials" placeholder="e.g. Original hardwood floorboards, staircase with turned balusters, exposed brick, leadlight glass..."></textarea></div><div class="form-group"><label class="form-label">What are you hoping to achieve?</label><textarea class="form-textarea" id="bf-goals" placeholder="e.g. Renovating and want to preserve original materials. Would love a dining table made from our own floorboards..."></textarea></div><div class="form-row"><div class="form-group"><label class="form-label">Timeline</label><select class="form-select" id="bf-timeline"><option>Just exploring - no rush</option><option>Planning ahead (6-12 months)</option><option>Active project (1-6 months)</option><option>Urgent (under 1 month)</option></select></div><div class="form-group"><label class="form-label">Budget Range</label><select class="form-select" id="bf-budget"><option>Not sure yet</option><option>Under $5,000</option><option>$5,000 - $15,000</option><option>$15,000 - $30,000</option><option>$30,000+</option></select></div></div><div class="section-lbl">Attach Files & Media</div><div class="form-group"><label class="form-label">Architectural Plans (link)</label><input class="form-input" id="bf-plans" placeholder="Google Drive link to plans, drawings or PDFs..."></div><div class="form-group"><label class="form-label">Photos / Video Brief (link)</label><input class="form-input" id="bf-photos" placeholder="Google Drive, Dropbox, YouTube or Vimeo link..."></div><div class="form-group"><label class="form-label">Other Documents (link)</label><input class="form-input" id="bf-docs" placeholder="Any other relevant documents, heritage reports, council approvals..."></div><div style="background:var(--cream);border-radius:var(--r);padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--stone);line-height:1.6">To attach large files, upload them to Google Drive or Dropbox first, then paste the share link above. For video walkthroughs, upload to YouTube (unlisted) or Vimeo and paste the link.</div><button class="btn btn-timber btn-full" style="margin-top:8px" onclick="submitEnhancedBrief()" id="submitBriefBtn">Submit Brief to Dave</button></div></div></div>';
+}
+
+async function submitEnhancedBrief() {
+  var user = window.currentUser;
+  var address = document.getElementById('bf-address').value.trim();
+  if (!address) { toast('Please enter your property address'); return; }
+  var btn = document.getElementById('submitBriefBtn');
+  btn.disabled = true; btn.textContent = 'Submitting...';
+  try {
+    await window.FB.addDoc(window.FB.collection(window.FB.db,'briefs'), {
+      clientEmail: user.email,
+      clientName: user.name || user.email,
+      clientUid: user.uid,
+      address: address,
+      propertyType: document.getElementById('bf-proptype').value,
+      materialsDescription: document.getElementById('bf-materials').value,
+      goalsDescription: document.getElementById('bf-goals').value,
+      timeline: document.getElementById('bf-timeline').value,
+      budget: document.getElementById('bf-budget').value,
+      plansLink: document.getElementById('bf-plans').value.trim(),
+      photoLinks: document.getElementById('bf-photos').value.trim(),
+      docsLink: document.getElementById('bf-docs').value.trim(),
+      status: 'new',
+      submittedAt: window.FB.serverTimestamp(),
+    });
+    toast('Brief submitted! Dave will be in touch soon.');
+    setTimeout(function() { navTo('my-overview'); }, 1500);
+  } catch(e) {
+    toast('Error: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = 'Submit Brief to Dave';
+  }
+}
+
 window._makeAdmin = async () => {
   if (!window.currentUser) { alert('Not signed in'); return; }
   try {
