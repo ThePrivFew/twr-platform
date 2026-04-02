@@ -1,0 +1,2349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Wattle Road — Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<!-- Firebase compat SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<style>
+/* ─── TOKENS ─────────────────────────────────────────────────────────────── */
+:root {
+  --bark:     #1E1C19;
+  --bark-mid: #2C2A26;
+  --bark-s:   #3A3730;
+  --timber:   #8B6A3E;
+  --timber-l: #AD864E;
+  --timber-p: #C9A872;
+  --timber-g: rgba(139,106,62,0.1);
+  --cream:    #F5F0E8;
+  --cream-dk: #EDE4D3;
+  --cream-md: #E2D8C4;
+  --paper:    #FAF8F4;
+  --sand:     #D4C4A8;
+  --stone:    #7A7570;
+  --moss:     #4A5E2E;
+  --moss-l:   #6A8040;
+  --clay:     #B87040;
+  --red:      #8B2A2A;
+  --red-l:    #C05050;
+  --blue:     #2A4A7A;
+  --blue-l:   #4A6AAA;
+  --serif:    'Cormorant Garamond', Georgia, serif;
+  --sans:     'DM Sans', -apple-system, sans-serif;
+  --r:        8px;
+  --border:   0.5px solid rgba(30,28,25,0.1);
+  --shadow:   0 2px 12px rgba(30,28,25,0.08);
+  --shadow-lg:0 8px 32px rgba(30,28,25,0.14);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--paper);
+  color: var(--bark);
+  font-family: var(--sans);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── ANIMATIONS ─────────────────────────────────────────────────────────── */
+@keyframes fadeUp   { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:none } }
+@keyframes fadeIn   { from { opacity:0 } to { opacity:1 } }
+@keyframes slideR   { from { transform:translateX(32px);opacity:0 } to { transform:none;opacity:1 } }
+@keyframes spin     { to { transform:rotate(360deg) } }
+@keyframes pulse    { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+.fu  { animation: fadeUp .3s ease both }
+.fu1 { animation: fadeUp .3s .06s ease both }
+.fu2 { animation: fadeUp .3s .12s ease both }
+.fu3 { animation: fadeUp .3s .18s ease both }
+.fu4 { animation: fadeUp .3s .24s ease both }
+
+/* ─── LAYOUT ─────────────────────────────────────────────────────────────── */
+.shell { display: flex; min-height: 100vh; }
+
+/* ─── SIDEBAR ────────────────────────────────────────────────────────────── */
+.sidebar {
+  width: 220px; flex-shrink: 0;
+  background: var(--bark);
+  display: flex; flex-direction: column;
+  position: sticky; top: 0; height: 100vh;
+  overflow-y: auto;
+}
+
+.sb-brand {
+  padding: 20px 16px 14px;
+  border-bottom: 0.5px solid rgba(255,255,255,0.07);
+}
+
+.sb-brand-name {
+  font-family: var(--serif);
+  font-size: 15px; font-weight: 400;
+  color: var(--timber-p);
+  letter-spacing: .04em; line-height: 1.2;
+}
+
+.sb-brand-sub {
+  font-size: 9px; text-transform: uppercase;
+  letter-spacing: .18em;
+  color: rgba(255,255,255,0.28);
+  margin-top: 3px;
+}
+
+.sb-role {
+  margin: 8px 16px 0;
+  font-size: 9px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .1em;
+  padding: 3px 8px; border-radius: 3px;
+  display: inline-block;
+}
+
+.sb-role-admin { background: rgba(139,106,62,.3); color: var(--timber-p); }
+.sb-role-client { background: rgba(74,94,46,.3); color: #8AAA60; }
+
+.sb-nav { padding: 10px 10px; flex: 1; }
+.sb-lbl {
+  font-size: 9px; text-transform: uppercase;
+  letter-spacing: .14em; color: rgba(255,255,255,.22);
+  padding: 10px 8px 4px; font-weight: 500;
+}
+
+.sb-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 5px;
+  cursor: pointer; font-size: 12px;
+  color: rgba(255,255,255,.42);
+  margin-bottom: 1px; border: none;
+  background: transparent; width: 100%;
+  text-align: left; font-family: var(--sans);
+  transition: all .12s; position: relative;
+}
+
+.sb-item:hover { background: rgba(255,255,255,.06); color: rgba(255,255,255,.75); }
+.sb-item.active { background: var(--timber); color: #fff; }
+.sb-item svg { width: 14px; height: 14px; flex-shrink: 0; opacity: .75; }
+.sb-item.active svg { opacity: 1; }
+
+.sb-badge {
+  margin-left: auto;
+  background: var(--clay); color: #fff;
+  font-size: 9px; padding: 1px 6px;
+  border-radius: 10px; font-weight: 600;
+}
+
+.sb-foot {
+  padding: 12px 14px;
+  border-top: 0.5px solid rgba(255,255,255,.07);
+  display: flex; align-items: center; gap: 8px;
+}
+
+.sb-av {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--timber);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 600; color: #fff;
+  flex-shrink: 0; cursor: pointer;
+}
+
+.sb-foot-name { font-size: 11px; color: rgba(255,255,255,.45); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ─── MAIN ───────────────────────────────────────────────────────────────── */
+.main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+.topbar {
+  background: #fff; border-bottom: var(--border);
+  padding: 13px 28px;
+  display: flex; align-items: center;
+  justify-content: space-between; gap: 12px;
+  position: sticky; top: 0; z-index: 50;
+}
+
+.page-title { font-family: var(--serif); font-size: 20px; font-weight: 500; color: var(--bark); }
+.page-sub   { font-size: 11px; color: var(--stone); margin-top: 1px; }
+
+.topbar-right { display: flex; gap: 8px; align-items: center; }
+
+.content { padding: 24px 28px 60px; }
+
+/* ─── VIEWS ──────────────────────────────────────────────────────────────── */
+.view { display: none; }
+.view.active { display: block; }
+
+/* ─── BUTTONS ────────────────────────────────────────────────────────────── */
+.btn {
+  font-family: var(--sans); font-size: 12px;
+  padding: 7px 14px; border-radius: var(--r);
+  cursor: pointer; border: var(--border);
+  background: transparent; color: var(--bark);
+  transition: all .15s; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.btn:hover { background: var(--cream); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primary  { background: var(--bark);   color: var(--cream); border-color: var(--bark); }
+.btn-primary:hover { background: var(--bark-mid); }
+.btn-timber   { background: var(--timber); color: #fff; border-color: var(--timber); }
+.btn-timber:hover { background: var(--timber-l); }
+.btn-moss     { background: var(--moss);   color: #fff; border-color: var(--moss); }
+.btn-sm  { padding: 5px 10px; font-size: 11px; }
+.btn-danger { color: var(--red-l); border-color: #F09595; }
+.btn-danger:hover { background: #FCEBEB; }
+.btn-full { width: 100%; justify-content: center; }
+
+/* ─── FORM ───────────────────────────────────────────────────────────────── */
+.form-group  { margin-bottom: 14px; }
+.form-row    { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-row-3  { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+.form-label {
+  display: block; font-size: 10px;
+  text-transform: uppercase; letter-spacing: .1em;
+  color: var(--stone); margin-bottom: 5px; font-weight: 500;
+}
+
+.form-input, .form-select, .form-textarea {
+  width: 100%; font-size: 13px;
+  padding: 9px 12px; border-radius: var(--r);
+  border: var(--border); background: #fff;
+  color: var(--bark); font-family: var(--sans);
+  outline: none; transition: border-color .15s;
+  -webkit-appearance: none;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--timber);
+  box-shadow: 0 0 0 3px var(--timber-g);
+}
+.form-textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
+.form-select   { cursor: pointer; }
+.form-hint     { font-size: 11px; color: var(--stone); margin-top: 4px; }
+
+/* ─── PANEL ──────────────────────────────────────────────────────────────── */
+.panel {
+  background: #fff; border: var(--border);
+  border-radius: var(--r); overflow: hidden;
+  margin-bottom: 16px;
+}
+.panel-head {
+  padding: 13px 18px; border-bottom: var(--border);
+  display: flex; align-items: center;
+  justify-content: space-between; gap: 10px; flex-wrap: wrap;
+}
+.panel-title { font-family: var(--serif); font-size: 15px; font-weight: 500; color: var(--bark); }
+.panel-body  { padding: 16px 18px; }
+.panel-link  { font-size: 11px; color: var(--timber); cursor: pointer; white-space: nowrap; }
+
+/* ─── STATS ──────────────────────────────────────────────────────────────── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px; margin-bottom: 20px;
+}
+
+.stat {
+  background: #fff; border: var(--border);
+  border-radius: var(--r); padding: 16px 18px;
+  position: relative; overflow: hidden;
+}
+
+.stat::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+}
+.s1::before { background: var(--timber); }
+.s2::before { background: var(--moss); }
+.s3::before { background: var(--clay); }
+.s4::before { background: var(--blue-l); }
+.s5::before { background: var(--stone); }
+
+.stat-lbl  { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--stone); margin-bottom: 4px; font-weight: 500; }
+.stat-val  { font-family: var(--serif); font-size: 32px; font-weight: 500; color: var(--bark); line-height: 1; margin-bottom: 4px; }
+.stat-sub  { font-size: 11px; color: var(--stone); }
+
+/* ─── TABLE ──────────────────────────────────────────────────────────────── */
+.tbl { width: 100%; border-collapse: collapse; }
+.tbl th {
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: .09em; color: var(--stone);
+  padding: 9px 16px; text-align: left;
+  background: var(--cream); font-weight: 500;
+  border-bottom: var(--border); white-space: nowrap;
+}
+.tbl td {
+  padding: 11px 16px; font-size: 12px;
+  border-bottom: var(--border); color: var(--bark);
+  vertical-align: middle;
+}
+.tbl tr:hover td { background: var(--paper); cursor: pointer; }
+.tbl tr:last-child td { border-bottom: none; }
+.mat-name   { font-size: 12px; font-weight: 500; color: var(--bark); }
+.mat-origin { font-size: 11px; color: var(--stone); margin-top: 1px; }
+
+/* ─── TAGS / BADGES ──────────────────────────────────────────────────────── */
+.tag {
+  display: inline-block; padding: 2px 8px;
+  border-radius: 3px; font-size: 10px; font-weight: 500;
+}
+.tag-timber   { background: #F5E8DB; color: #7A3A1A; }
+.tag-masonry  { background: #EDE9E3; color: #5A4F3A; }
+.tag-metal    { background: #E5EAF2; color: #2A3A55; }
+.tag-glass    { background: #E3EEF0; color: #1A4A55; }
+.tag-fixtures { background: #F0EAF5; color: #4A2A5A; }
+.tag-other    { background: var(--cream); color: var(--stone); }
+
+.status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+.dot-av  { background: var(--moss); }
+.dot-pr  { background: var(--clay); }
+.dot-al  { background: var(--timber); }
+.dot-so  { background: var(--stone); }
+.dot-new { background: var(--blue-l); }
+
+.badge {
+  display: inline-block; padding: 2px 8px;
+  border-radius: 20px; font-size: 9px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+.badge-green  { background: #EAF3DE; color: #27500A; }
+.badge-amber  { background: #FAEEDA; color: #633806; }
+.badge-red    { background: #FCEBEB; color: #8B2A2A; }
+.badge-blue   { background: #E3EBF7; color: #2A4A7A; }
+.badge-stone  { background: var(--cream-dk); color: var(--stone); }
+.badge-moss   { background: #E8EDD9; color: var(--moss); }
+
+.use-badge {
+  display: inline-block; padding: 2px 7px;
+  border-radius: 3px; font-size: 10px;
+  background: #E8EDD9; color: var(--moss);
+  margin: 1px 2px 0 0;
+}
+
+/* ─── PROGRESS ───────────────────────────────────────────────────────────── */
+.prog-bar { height: 5px; background: var(--cream-dk); border-radius: 3px; overflow: hidden; margin: 6px 0; }
+.prog-fill { height: 100%; background: var(--timber); border-radius: 3px; transition: width .3s; }
+
+/* ─── PROJECT CARD ───────────────────────────────────────────────────────── */
+.proj-card {
+  background: #fff; border: var(--border);
+  border-radius: var(--r); padding: 14px 16px;
+  margin-bottom: 10px; cursor: pointer;
+  transition: box-shadow .15s;
+}
+.proj-card:hover { box-shadow: var(--shadow); }
+.proj-card-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.proj-card-name { font-family: var(--serif); font-size: 16px; font-weight: 500; color: var(--bark); }
+.proj-card-addr { font-size: 11px; color: var(--stone); margin-top: 2px; }
+
+/* ─── SECTION LABEL ──────────────────────────────────────────────────────── */
+.section-lbl {
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: .1em; color: var(--stone);
+  margin: 18px 0 8px; font-weight: 500;
+}
+
+/* ─── INFO ROW ───────────────────────────────────────────────────────────── */
+.info-row {
+  display: flex; gap: 10px;
+  padding: 9px 0; border-bottom: 0.5px solid rgba(30,28,25,.06);
+}
+.info-row:last-child { border-bottom: none; }
+.info-key { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--stone); min-width: 100px; font-weight: 500; padding-top: 1px; }
+.info-val { font-size: 13px; color: var(--bark); flex: 1; line-height: 1.5; }
+
+/* ─── SIGN-OFF BARS ──────────────────────────────────────────────────────── */
+.sig-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 16px; border-bottom: var(--border); gap: 12px;
+}
+.sig-bar:last-child { border-bottom: none; }
+.sig-lbl { font-size: 12px; font-weight: 500; color: var(--bark); }
+.sig-sub { font-size: 11px; color: var(--stone); margin-top: 1px; }
+.sig-btn { font-size: 11px; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-family: var(--sans); white-space: nowrap; flex-shrink: 0; }
+
+/* ─── GATE / AUTH ────────────────────────────────────────────────────────── */
+.gate {
+  min-height: 100vh; display: flex;
+  align-items: center; justify-content: center;
+  padding: 32px 16px;
+  background: var(--paper);
+}
+
+.gate-card {
+  width: 100%; max-width: 380px;
+  background: #fff; border: var(--border);
+  border-radius: 12px; padding: 32px 28px;
+  box-shadow: var(--shadow-lg);
+}
+
+.gate-logo { font-family: var(--serif); font-size: 24px; font-weight: 400; color: var(--timber); margin-bottom: 2px; }
+.gate-sub  { font-size: 10px; text-transform: uppercase; letter-spacing: .18em; color: var(--stone); margin-bottom: 24px; }
+.gate-title { font-family: var(--serif); font-size: 20px; font-weight: 500; color: var(--bark); margin-bottom: 5px; }
+.gate-desc  { font-size: 12px; color: var(--stone); line-height: 1.6; margin-bottom: 20px; }
+.gate-divider { font-size: 10px; color: var(--stone); text-align: center; margin: 14px 0; text-transform: uppercase; letter-spacing: .1em; }
+.gate-error { font-size: 11px; color: var(--red-l); margin-top: 8px; text-align: center; display: none; }
+.gate-foot  { font-size: 11px; color: var(--stone); text-align: center; margin-top: 20px; line-height: 1.6; }
+
+/* ─── STORY PAGE ─────────────────────────────────────────────────────────── */
+.story-hero {
+  background: linear-gradient(160deg, var(--bark) 0%, var(--bark-mid) 100%);
+  border-radius: var(--r);
+  padding: 40px 32px;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+}
+.story-hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+.story-eyebrow { font-size: 10px; text-transform: uppercase; letter-spacing: .2em; color: var(--timber-p); opacity: .8; margin-bottom: 8px; }
+.story-title   { font-family: var(--serif); font-size: 32px; font-weight: 300; color: #fff; line-height: 1.15; margin-bottom: 8px; }
+.story-sub     { font-size: 13px; color: rgba(255,255,255,.55); line-height: 1.6; }
+
+.story-section { margin-bottom: 24px; }
+.story-section-title { font-family: var(--serif); font-size: 18px; font-weight: 500; color: var(--bark); margin-bottom: 12px; }
+.story-body { font-size: 13px; color: var(--bark); line-height: 1.8; }
+
+.cert-card {
+  background: linear-gradient(135deg, var(--cream) 0%, var(--cream-dk) 100%);
+  border: 1px solid var(--sand);
+  border-radius: var(--r);
+  padding: 24px;
+  position: relative;
+}
+.cert-card::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border: 0.5px solid var(--sand);
+  border-radius: 4px;
+  pointer-events: none;
+}
+.cert-title { font-family: var(--serif); font-size: 22px; font-weight: 400; color: var(--bark); margin-bottom: 4px; }
+.cert-sub   { font-size: 10px; text-transform: uppercase; letter-spacing: .18em; color: var(--stone); margin-bottom: 16px; }
+
+/* ─── PUBLISH MOMENT ─────────────────────────────────────────────────────── */
+.publish-overlay {
+  position: fixed; inset: 0;
+  background: var(--bark);
+  z-index: 500;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 32px;
+  animation: fadeIn .4s ease;
+}
+.publish-title { font-family: var(--serif); font-size: 40px; font-weight: 300; color: var(--cream); text-align: center; line-height: 1.2; margin-bottom: 12px; }
+.publish-sub   { font-size: 14px; color: var(--timber-p); text-align: center; margin-bottom: 40px; }
+
+/* ─── JOURNAL CARD ───────────────────────────────────────────────────────── */
+.journal-entry {
+  background: #fff; border: var(--border);
+  border-radius: var(--r); padding: 14px 16px;
+  margin-bottom: 8px; position: relative;
+}
+.journal-date  { font-size: 11px; color: var(--stone); margin-bottom: 4px; }
+.journal-body  { font-size: 13px; color: var(--bark); line-height: 1.6; }
+.journal-author { font-size: 10px; color: var(--timber); margin-top: 6px; font-weight: 500; }
+
+/* ─── REFERRAL ───────────────────────────────────────────────────────────── */
+.referral-box {
+  background: linear-gradient(135deg, var(--cream) 0%, #fff 100%);
+  border: 1px solid var(--sand);
+  border-radius: var(--r);
+  padding: 20px;
+}
+.ref-link {
+  background: var(--cream-dk);
+  border: var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-family: monospace;
+  color: var(--bark);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 10px 0;
+  word-break: break-all;
+}
+
+/* ─── MAP EMBED ──────────────────────────────────────────────────────────── */
+.map-embed {
+  width: 100%; height: 200px;
+  border-radius: var(--r);
+  border: var(--border);
+  background: var(--cream-dk);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--stone); font-size: 12px;
+  overflow: hidden;
+}
+.map-embed iframe { width: 100%; height: 100%; border: none; }
+
+/* ─── SPINNER ────────────────────────────────────────────────────────────── */
+.spinner { width: 28px; height: 28px; border: 2px solid var(--cream-dk); border-top-color: var(--timber); border-radius: 50%; animation: spin .8s linear infinite; margin: 40px auto; }
+.spinner-sm { width: 16px; height: 16px; border-width: 1.5px; margin: 0; display: inline-block; }
+
+/* ─── LOADING OVERLAY ────────────────────────────────────────────────────── */
+.loading-cover { position: fixed; inset: 0; background: var(--paper); z-index: 999; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; }
+.loading-cover-title { font-family: var(--serif); font-size: 18px; color: var(--bark); }
+.loading-cover-sub { font-size: 12px; color: var(--stone); }
+
+/* ─── SHEET ──────────────────────────────────────────────────────────────── */
+.sheet-bg { position: fixed; inset: 0; background: rgba(30,28,25,.5); z-index: 200; display: flex; align-items: flex-start; justify-content: flex-end; animation: fadeIn .2s ease; }
+.sheet { width: 500px; height: 100vh; background: #fff; overflow-y: auto; box-shadow: var(--shadow-lg); animation: slideR .25s ease; }
+.sheet-head { padding: 18px 22px; border-bottom: var(--border); display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; position: sticky; top: 0; background: #fff; z-index: 10; }
+.sheet-title { font-family: var(--serif); font-size: 20px; font-weight: 500; color: var(--bark); line-height: 1.2; }
+.sheet-close { width: 28px; height: 28px; border: none; background: var(--paper); border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--stone); flex-shrink: 0; transition: all .12s; }
+.sheet-close:hover { background: var(--cream-dk); color: var(--bark); }
+.sheet-body { padding: 20px 22px; }
+
+/* ─── TOAST ──────────────────────────────────────────────────────────────── */
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--bark); color: var(--cream); padding: 10px 16px; border-radius: var(--r); font-size: 12px; z-index: 999; opacity: 0; transform: translateY(6px); transition: all .2s; pointer-events: none; }
+.toast.show { opacity: 1; transform: none; }
+
+/* ─── EMPTY ──────────────────────────────────────────────────────────────── */
+.empty { text-align: center; padding: 48px 24px; color: var(--stone); }
+.empty-icon  { font-size: 36px; margin-bottom: 12px; opacity: .4; }
+.empty-title { font-family: var(--serif); font-size: 18px; color: var(--bark); margin-bottom: 6px; }
+.empty-sub   { font-size: 12px; line-height: 1.6; }
+
+/* ─── DIVIDER ────────────────────────────────────────────────────────────── */
+.divider { height: .5px; background: rgba(30,28,25,.09); margin: 16px 0; }
+
+/* ─── FREE/PAID GATE ─────────────────────────────────────────────────────── */
+.paywall {
+  background: linear-gradient(135deg, var(--cream) 0%, var(--cream-dk) 100%);
+  border: 1px solid var(--sand);
+  border-radius: var(--r);
+  padding: 28px 24px;
+  text-align: center;
+  margin: 20px 0;
+}
+.paywall-icon  { font-size: 32px; margin-bottom: 10px; }
+.paywall-title { font-family: var(--serif); font-size: 20px; color: var(--bark); margin-bottom: 6px; }
+.paywall-desc  { font-size: 12px; color: var(--stone); line-height: 1.6; margin-bottom: 16px; }
+
+/* ─── ACTIVITY FEED ──────────────────────────────────────────────────────── */
+.activity-item { display: flex; gap: 10px; padding: 9px 0; border-bottom: .5px solid rgba(30,28,25,.06); }
+.activity-item:last-child { border-bottom: none; }
+.activity-dot  { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+.activity-text { font-size: 12px; color: var(--bark); line-height: 1.45; flex: 1; }
+.activity-time { font-size: 10px; color: var(--stone); white-space: nowrap; }
+
+/* ─── RESPONSIVE ─────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .stats-row { grid-template-columns: 1fr 1fr; }
+  .form-row  { grid-template-columns: 1fr; }
+  .form-row-3{ grid-template-columns: 1fr; }
+  .sheet     { width: 100%; }
+  .content   { padding: 16px 16px 60px; }
+  .topbar    { padding: 12px 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-cover" id="loadingCover">
+  <div style="font-family:var(--serif);font-size:22px;color:var(--timber)">The Wattle Road</div>
+  <div class="spinner"></div>
+  <div style="font-size:12px;color:var(--stone)">Loading platform...</div>
+</div>
+
+<!-- GATE (shown when logged out) -->
+<div id="gateWrap" style="display:none">
+  <div class="gate">
+    <div class="gate-card">
+      <div class="gate-logo">The Wattle Road</div>
+      <div class="gate-sub">Platform</div>
+      <div class="gate-title" id="gateTitle">Welcome back</div>
+      <div class="gate-desc" id="gateDesc">Sign in to access your project portal.</div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" type="email" id="gateEmail" placeholder="you&#64;studio.com.au" autocomplete="email">
+      </div>
+      <div class="form-group" id="gatePasswordGroup">
+        <label class="form-label">Password</label>
+        <input class="form-input" type="password" id="gatePassword" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <div class="form-group" id="gateNameGroup" style="display:none">
+        <label class="form-label">Your Name</label>
+        <input class="form-input" type="text" id="gateName" placeholder="Your full name">
+      </div>
+      <button class="btn btn-primary btn-full" id="gateBtn" onclick="handleGateAction()">Sign In</button>
+      <div class="gate-error" id="gateError"></div>
+      <div class="gate-divider">or</div>
+      <button class="btn btn-full" id="gateToggle" onclick="toggleGateMode()">Request Access</button>
+      <div class="gate-foot">To request access, email<br><a href="/cdn-cgi/l/email-protection#7c181d0a195a5f4a48470814190b1d080810190e131d18521f1311521d09" style="color:var(--timber)">dave&#64;thewattleroad.com.au</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- APP SHELL (shown when logged in) -->
+<div id="appShell" style="display:none">
+  <div class="shell">
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sb-brand">
+        <div class="sb-brand-name">The Wattle Road</div>
+        <div class="sb-brand-sub" id="sbEnvLabel">Platform</div>
+      </div>
+      <div id="sbRoleWrap" style="padding:6px 16px 0"></div>
+      <nav class="sb-nav" id="sbNav">
+        <!-- populated by JS based on role -->
+      </nav>
+      <div class="sb-foot">
+        <div class="sb-av" id="sbAv" onclick="showAccountSheet()">?</div>
+        <div class="sb-foot-name" id="sbName">Loading...</div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main">
+      <div class="topbar">
+        <div>
+          <div class="page-title" id="pageTitle">Dashboard</div>
+          <div class="page-sub"  id="pageSub">Good morning</div>
+        </div>
+        <div class="topbar-right" id="topbarRight"></div>
+      </div>
+      <div class="content" id="mainContent">
+        <div class="spinner"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SHEET -->
+<div class="sheet-bg" id="sheetBg" style="display:none" onclick="closeSheet(event)">
+  <div class="sheet" id="sheetPanel"></div>
+</div>
+
+<!-- PUBLISH OVERLAY -->
+<div class="publish-overlay" id="publishOverlay" style="display:none"></div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+function showGate() {
+  var cover = document.getElementById('loadingCover');
+  if (cover) cover.style.display = 'none';
+  var gate = document.getElementById('gateWrap');
+  if (gate) gate.style.display = 'block';
+}
+var db, auth;
+try {
+  firebase.initializeApp({
+    apiKey: "AIzaSyBzV5oq_dDCrg7HSypWLBYI4Ud5z070tcM",
+    authDomain: "the-wattle-road.firebaseapp.com",
+    projectId: "the-wattle-road",
+    storageBucket: "the-wattle-road.firebasestorage.app",
+    messagingSenderId: "719107228828",
+    appId: "1:719107228828:web:477acdca539efaf1be1959"
+  });
+  db = firebase.firestore();
+  auth = firebase.auth();
+} catch(e) { console.warn('Firebase init failed:', e.message); }
+
+window.FB = {
+  get db() { return db; },
+  get auth() { return auth; },
+  serverTimestamp: () => firebase.firestore.FieldValue.serverTimestamp(),
+  collection: (d, path) => d.collection(path),
+  doc: (d, col, id) => id !== undefined ? d.collection(col).doc(id) : d.doc(col),
+  addDoc:    (ref, data) => ref.add(data),
+  setDoc:    (ref, data) => ref.set(data),
+  updateDoc: (ref, data) => ref.update(data),
+  deleteDoc: (ref)       => ref.delete(),
+  getDocs:   (ref)       => ref.get(),
+  getDoc:    (ref)       => ref.get(),
+  query: (ref, ...cc) => {
+    let q = ref;
+    for (const c of cc) { if (!c) continue; if (c.t==='w') q=q.where(c.f,c.o,c.v); if (c.t==='ob') q=q.orderBy(c.f,c.d||'asc'); }
+    return q;
+  },
+  where:   (f, o, v) => ({t:'w', f, o, v}),
+  orderBy: (f, d)    => ({t:'ob', f, d}),
+  onSnapshot: (ref, cb) => ref.onSnapshot(cb),
+  signInWithEmailAndPassword:     (a, e, p) => a.signInWithEmailAndPassword(e, p),
+  createUserWithEmailAndPassword: (a, e, p) => a.createUserWithEmailAndPassword(e, p),
+  signOut:               (a)     => a.signOut(),
+  onAuthStateChanged:    (a, cb) => a.onAuthStateChanged(cb),
+  sendPasswordResetEmail:(a, e)  => a.sendPasswordResetEmail(e),
+};
+
+// Hard fallback
+var fallbackTimer = setTimeout(showGate, 4000);
+
+// Auth state
+if (typeof firebase !== 'undefined' && auth) {
+  auth.onAuthStateChanged(async function(user) {
+    clearTimeout(fallbackTimer);
+    var cover = document.getElementById('loadingCover');
+    if (cover) cover.style.display = 'none';
+    if (user) {
+      try {
+        var snap = await db.collection('users').doc(user.uid).get();
+        var data = snap.exists ? snap.data() : {};
+        window.currentUser = Object.assign({ uid: user.uid, email: user.email, role: 'client' }, data);
+      } catch(e) {
+        window.currentUser = { uid: user.uid, email: user.email, role: 'client' };
+      }
+      window.dispatchEvent(new CustomEvent('userReady', { detail: window.currentUser }));
+    } else {
+      window.currentUser = null;
+      window.dispatchEvent(new CustomEvent('userSignedOut'));
+    }
+  });
+} else {
+  showGate();
+}
+
+
+// ─── WAIT FOR FIREBASE MODULE ────────────────────────────────────────────────
+// Firebase is loaded as an ES module above; we wait for userReady event
+
+// ─── TOAST ───────────────────────────────────────────────────────────────────
+function toast(msg, duration = 2600) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ─── SHEET ───────────────────────────────────────────────────────────────────
+function openSheet(html) {
+  document.getElementById('sheetPanel').innerHTML = html;
+  document.getElementById('sheetBg').style.display = 'flex';
+}
+
+function closeSheet(e) {
+  if (e && e.target !== document.getElementById('sheetBg')) return;
+  document.getElementById('sheetBg').style.display = 'none';
+}
+
+function closeSheetDirect() {
+  document.getElementById('sheetBg').style.display = 'none';
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeSheetDirect();
+});
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+const state = {
+  currentPage: null,
+  clients: [],
+  projects: [],
+  materials: [],
+  briefs: [],
+  selectedClientId: null,
+  selectedProjectId: null,
+};
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function uid() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 5); }
+
+function fmtDate(ts) {
+  if (!ts) return '—';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function timeAgo(ts) {
+  if (!ts) return '';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+  return Math.floor(diff/86400) + 'd ago';
+}
+
+function tagHtml(type) {
+  const map = { Timber:'tag-timber', Masonry:'tag-masonry', Metal:'tag-metal', Glass:'tag-glass', 'Fixtures & fittings':'tag-fixtures' };
+  return `<span class="tag ${map[type]||'tag-other'}">${type||'Other'}</span>`;
+}
+
+function statusDot(s) {
+  const map = { Available:'dot-av', Processing:'dot-pr', Allocated:'dot-al', Storage:'dot-so' };
+  return `<span class="status-dot ${map[s]||'dot-so'}"></span>${s||'—'}`;
+}
+
+function mapEmbed(address) {
+  if (!address) return '<div class="map-embed">No address set</div>';
+  const q = encodeURIComponent(address);
+  return `<div class="map-embed"><iframe loading="lazy" src="https://maps.google.com/maps?q=${q}&output=embed&z=15" allowfullscreen></iframe></div>`;
+}
+
+function initials(name) {
+  if (!name) return '?';
+  return name.split(' ').map(w=>w[0]).join('').toUpperCase().substring(0,2);
+}
+
+// ─── GATE MODE ───────────────────────────────────────────────────────────────
+let gateMode = 'signin';
+
+function toggleGateMode() {
+  gateMode = gateMode === 'signin' ? 'register' : 'signin';
+  document.getElementById('gateTitle').textContent = gateMode === 'signin' ? 'Welcome back' : 'Request Access';
+  document.getElementById('gateDesc').textContent = gateMode === 'signin' ? 'Sign in to access your project portal.' : 'Create your account. Dave will activate your project.';
+  document.getElementById('gateBtn').textContent = gateMode === 'signin' ? 'Sign In' : 'Create Account';
+  document.getElementById('gateToggle').textContent = gateMode === 'signin' ? 'Request Access' : 'Back to Sign In';
+  document.getElementById('gateNameGroup').style.display = gateMode === 'register' ? 'block' : 'none';
+}
+
+async function handleGateAction() {
+  const email = document.getElementById('gateEmail').value.trim();
+  const password = document.getElementById('gatePassword').value;
+  const btn = document.getElementById('gateBtn');
+  const err = document.getElementById('gateError');
+
+  if (!email || !password) { showGateError('Please enter your email and password.'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Please wait...';
+  err.style.display = 'none';
+
+  try {
+    if (gateMode === 'signin') {
+      await window.FB.signInWithEmailAndPassword(window.FB.auth, email, password);
+    } else {
+      const name = document.getElementById('gateName').value.trim() || email.split('@')[0];
+      const cred = await window.FB.createUserWithEmailAndPassword(window.FB.auth, email, password);
+      // Create user record in Firestore
+      await window.FB.addDoc(window.FB.collection(window.FB.db, 'users'), {
+        uid: cred.user.uid,
+        email, name, role: 'client',
+        subscriptionTier: 'free',
+        createdAt: window.FB.serverTimestamp()
+      });
+      toast('Account created. Welcome to TWR.');
+    }
+  } catch(e) {
+    const msgs = {
+      'auth/user-not-found': 'No account found with this email.',
+      'auth/wrong-password': 'Incorrect password.',
+      'auth/invalid-credential': 'Incorrect email or password.',
+      'auth/email-already-in-use': 'An account with this email already exists.',
+      'auth/weak-password': 'Password must be at least 6 characters.',
+      'auth/invalid-email': 'Please enter a valid email address.',
+    };
+    showGateError(msgs[e.code] || 'Sign-in failed. Please try again.');
+    btn.disabled = false;
+    btn.textContent = gateMode === 'signin' ? 'Sign In' : 'Create Account';
+  }
+}
+
+function showGateError(msg) {
+  const el = document.getElementById('gateError');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// ─── AUTH READY ───────────────────────────────────────────────────────────────
+window.addEventListener('userReady', async (e) => {
+  const user = e.detail;
+  document.getElementById('loadingCover').style.display = 'none';
+  document.getElementById('gateWrap').style.display = 'none';
+  document.getElementById('appShell').style.display = 'block';
+  setupShell(user);
+});
+
+window.addEventListener('userSignedOut', () => {
+  document.getElementById('loadingCover').style.display = 'none';
+  document.getElementById('appShell').style.display = 'none';
+  document.getElementById('gateWrap').style.display = 'block';
+});
+
+// fallback handled above
+
+// ─── SHELL SETUP ─────────────────────────────────────────────────────────────
+function setupShell(user) {
+  const isAdmin = user.role === 'admin';
+  const name = user.name || user.email || 'User';
+
+  document.getElementById('sbAv').textContent = initials(name);
+  document.getElementById('sbName').textContent = name;
+  document.getElementById('sbEnvLabel').textContent = isAdmin ? 'Admin Dashboard' : 'Client Portal';
+
+  document.getElementById('sbRoleWrap').innerHTML =
+    `<span class="sb-role ${isAdmin?'sb-role-admin':'sb-role-client'}">${isAdmin?'Admin':'Client'}</span>`;
+
+  const greet = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  })();
+
+  // Build nav
+  const adminNav = [
+    { id:'dashboard', icon:'grid', label:'Dashboard' },
+    { id:'clients',   icon:'users', label:'Clients', section:'Clients' },
+    { id:'briefs',    icon:'inbox', label:'Incoming Briefs', badge:'briefs' },
+    { id:'projects',  icon:'folder', label:'All Projects', section:'Projects' },
+    { id:'materials', icon:'layers', label:'Material Library' },
+    { id:'signoffs',  icon:'check', label:'Signoffs', badge:'signoffs' },
+    { id:'products',  icon:'box', label:'Product Catalogue', section:'Catalogue' },
+    { id:'stories',   icon:'book', label:'Story Archive' },
+    { id:'stats',     icon:'chart', label:'Stats & Reports', section:'Reporting' },
+  ];
+
+  const clientNav = [
+    { id:'my-overview', icon:'home', label:'My Overview' },
+    { id:'my-brief',    icon:'edit', label:'My Brief', section:'My Project' },
+    { id:'my-materials',icon:'layers', label:'My Materials' },
+    { id:'my-journal',  icon:'book-open', label:'Project Journal' },
+    { id:'my-story',    icon:'star', label:'My Story' },
+    { id:'twr-products',icon:'box', label:'TWR Products', section:'TWR' },
+    { id:'refer',       icon:'share', label:'Refer a Friend' },
+  ];
+
+  const navItems = isAdmin ? adminNav : clientNav;
+  let currentSection = '';
+
+  document.getElementById('sbNav').innerHTML = navItems.map(item => {
+    let sectionHtml = '';
+    if (item.section && item.section !== currentSection) {
+      currentSection = item.section;
+      sectionHtml = `<div class="sb-lbl">${item.section}</div>`;
+    }
+    const badgeHtml = item.badge ? `<span class="sb-badge" id="badge-${item.badge}">0</span>` : '';
+    return `${sectionHtml}<button class="sb-item" id="nav-${item.id}" onclick="navTo('${item.id}')">${svgIcon(item.icon)}${item.label}${badgeHtml}</button>`;
+  }).join('');
+
+  // Go to default page
+  if (isAdmin) {
+    document.getElementById('pageSub').textContent = greet + ', Dave';
+    navTo('dashboard');
+  } else {
+    document.getElementById('pageSub').textContent = greet + (name ? ', ' + name.split(' ')[0] : '');
+    navTo('my-overview');
+  }
+}
+
+// ─── SVG ICONS ────────────────────────────────────────────────────────────────
+function svgIcon(name) {
+  const icons = {
+    grid:      '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>',
+    users:     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="3"/><path d="M1 14c0-3 2-5 5-5s5 2 5 5"/><circle cx="13" cy="6" r="2"/><path d="M13 11c1.5 0 2.5 1 2.5 3"/></svg>',
+    inbox:     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 9h3l1.5 2h3L10 9h3l1-6H1l1 6z"/></svg>',
+    folder:    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 4h4l1.5 2H15v7H1V4z"/></svg>',
+    layers:    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="8,2 15,6 8,10 1,6"/><polyline points="1,10 8,14 15,10"/></svg>',
+    check:     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2,8 6,12 14,4"/></svg>',
+    box:       '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1l7 4v6l-7 4L1 11V5L8 1z"/><polyline points="1,5 8,9 15,5"/><line x1="8" y1="9" x2="8" y2="15"/></svg>',
+    book:      '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2h5c1 0 1.5.5 1.5 1.5v10c0-.5-.5-1-1.5-1H2V2z"/><path d="M14 2H9c-1 0-1.5.5-1.5 1.5v10c0-.5.5-1 1.5-1h5V2z"/></svg>',
+    chart:     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="1" y1="14" x2="15" y2="14"/><rect x="2" y="8" width="3" height="6"/><rect x="6.5" y="5" width="3" height="9"/><rect x="11" y="2" width="3" height="12"/></svg>',
+    home:      '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 8l7-6 7 6v7H1V8z"/><rect x="5.5" y="10" width="5" height="5"/></svg>',
+    edit:      '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 2l3 3-9 9H2v-3l9-9z"/></svg>',
+    'book-open':'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3h6c1 0 1.5.5 1.5 1.5V14c0-1-.5-1.5-1.5-1.5H1V3z"/><path d="M15 3H9c-1 0-1.5.5-1.5 1.5V14c0-1 .5-1.5 1.5-1.5h6V3z"/></svg>',
+    star:      '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="8,2 10,6 15,6.5 11.5,10 12.5,15 8,12.5 3.5,15 4.5,10 1,6.5 6,6"/></svg>',
+    share:     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="13" cy="3" r="2"/><circle cx="3" cy="8" r="2"/><circle cx="13" cy="13" r="2"/><line x1="5" y1="7" x2="11" y2="4"/><line x1="5" y1="9" x2="11" y2="12"/></svg>',
+  };
+  return icons[name] || icons.box;
+}
+
+// ─── NAVIGATION ───────────────────────────────────────────────────────────────
+const pageTitles = {
+  dashboard:'Dashboard', clients:'Clients', briefs:'Incoming Briefs',
+  projects:'All Projects', materials:'Material Library', signoffs:'Signoffs',
+  products:'Product Catalogue', stories:'Story Archive', stats:'Stats & Reports',
+  'my-overview':'My Overview', 'my-brief':'My Brief', 'my-materials':'My Materials',
+  'my-journal':'Project Journal', 'my-story':'My Story',
+  'twr-products':'TWR Products', 'refer':'Refer a Friend',
+};
+
+function navTo(page) {
+  state.currentPage = page;
+  document.querySelectorAll('.sb-item').forEach(el => el.classList.remove('active'));
+  const navEl = document.getElementById('nav-' + page);
+  if (navEl) navEl.classList.add('active');
+  document.getElementById('pageTitle').textContent = pageTitles[page] || page;
+  window.scrollTo(0, 0);
+
+  const renderers = {
+    dashboard: renderAdminDashboard,
+    clients:   renderClients,
+    briefs:    renderBriefs,
+    projects:  renderAllProjects,
+    materials: renderMaterialLibrary,
+    signoffs:  renderSignoffs,
+    products:  renderProducts,
+    stories:   renderStories,
+    stats:     renderStats,
+    'my-overview': renderClientOverview,
+    'my-brief':    renderMyBrief,
+    'my-materials':renderMyMaterials,
+    'my-journal':  renderMyJournal,
+    'my-story':    renderMyStory,
+    'twr-products':renderTWRProducts,
+    'refer':       renderRefer,
+  };
+
+  if (renderers[page]) renderers[page]();
+  else document.getElementById('mainContent').innerHTML = `<div class="empty"><div class="empty-icon">🔧</div><div class="empty-title">${page}</div><div class="empty-sub">Coming soon</div></div>`;
+}
+
+// ─── ADMIN: DASHBOARD ────────────────────────────────────────────────────────
+async function renderAdminDashboard() {
+  document.getElementById('pageSub').textContent = 'Good ' + (new Date().getHours() < 12 ? 'morning' : 'afternoon') + ', Dave';
+  document.getElementById('topbarRight').innerHTML = `
+    <button class="btn btn-timber" onclick="openNewClientSheet()">+ New Client</button>
+    <button class="btn btn-primary" onclick="openLogMaterialSheet()">Log Material</button>`;
+
+  document.getElementById('mainContent').innerHTML = '<div class="spinner"></div>';
+
+  try {
+    const [clientsSnap, projectsSnap, materialsSnap, briefsSnap] = await Promise.all([
+      window.FB.getDocs(window.FB.collection(window.FB.db, 'clients')),
+      window.FB.getDocs(window.FB.collection(window.FB.db, 'projects')),
+      window.FB.getDocs(window.FB.collection(window.FB.db, 'materials')),
+      window.FB.getDocs(window.FB.collection(window.FB.db, 'briefs')),
+    ]);
+
+    state.clients   = clientsSnap.docs.map(d => ({id:d.id,...d.data()}));
+    state.projects  = projectsSnap.docs.map(d => ({id:d.id,...d.data()}));
+    state.materials = materialsSnap.docs.map(d => ({id:d.id,...d.data()}));
+    state.briefs    = briefsSnap.docs.map(d => ({id:d.id,...d.data()}));
+
+    const newBriefs = state.briefs.filter(b => b.status === 'new').length;
+    const pendingSig = state.materials.filter(m => m.signoffStatus === 'Pending').length;
+    const badgeBriefs = document.getElementById('badge-briefs');
+    const badgeSig    = document.getElementById('badge-signoffs');
+    if (badgeBriefs) badgeBriefs.textContent = newBriefs || '';
+    if (badgeSig)    badgeSig.textContent    = pendingSig || '';
+
+    const recentMats = [...state.materials].sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0)).slice(0,5);
+    const pendingMats = state.materials.filter(m => m.signoffStatus === 'Pending').slice(0,4);
+
+    document.getElementById('mainContent').innerHTML = `
+    <div class="fu">
+      <div class="stats-row fu1">
+        <div class="stat s1"><div class="stat-lbl">Active Clients</div><div class="stat-val">${state.clients.length}</div><div class="stat-sub">FCD commissions</div></div>
+        <div class="stat s2"><div class="stat-lbl">Materials Catalogued</div><div class="stat-val">${state.materials.length}</div><div class="stat-sub">Across all projects</div></div>
+        <div class="stat s3"><div class="stat-lbl">Pending Signoffs</div><div class="stat-val">${pendingSig}</div><div class="stat-sub">${pendingSig ? 'Action required' : 'All clear'}</div></div>
+        <div class="stat s4"><div class="stat-lbl">New Briefs</div><div class="stat-val">${newBriefs}</div><div class="stat-sub">${newBriefs ? 'Review needed' : 'Up to date'}</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px" class="fu2">
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">Recent Materials</div><span class="panel-link" onclick="navTo('materials')">View all</span></div>
+          ${recentMats.length ? `<table class="tbl">${recentMats.map(m=>`
+            <tr onclick="openMaterialSheet('${m.id}')">
+              <td><div class="mat-name">${m.name||'Unnamed'}</div><div class="mat-origin">${m.projectName||''} · ${m.locationInStructure||''}</div></td>
+              <td>${tagHtml(m.type)}</td>
+              <td style="font-size:11px">${statusDot(m.status)}</td>
+            </tr>`).join('')}</table>` : '<div class="panel-body"><div style="font-size:12px;color:var(--stone)">No materials yet. Start by logging a material.</div></div>'}
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">Pending Signoffs</div><span class="panel-link" onclick="navTo('signoffs')">View all</span></div>
+          ${pendingMats.length ? pendingMats.map(m=>`
+            <div class="sig-bar">
+              <div><div class="sig-lbl">${m.name||'Unnamed'}</div><div class="sig-sub">${m.projectName||''} · ${m.locationInStructure||''}</div></div>
+              <button class="sig-btn btn btn-moss btn-sm" onclick="approveSignoff('${m.id}')">Approve</button>
+            </div>`).join('') : '<div class="panel-body" style="font-size:12px;color:var(--stone)">No pending signoffs.</div>'}
+        </div>
+      </div>
+
+      <div class="panel fu3">
+        <div class="panel-head"><div class="panel-title">Active Projects</div><span class="panel-link" onclick="navTo('clients')">View all clients</span></div>
+        ${state.projects.length ? `<table class="tbl">
+          <tr><th>Project</th><th>Client</th><th>Materials</th><th>Status</th><th>Started</th></tr>
+          ${state.projects.slice(0,8).map(p=>{
+            const matCount = state.materials.filter(m=>m.projectId===p.id).length;
+            const client = state.clients.find(c=>c.id===p.clientId);
+            return `<tr onclick="openProjectSheet('${p.id}')">
+              <td><div class="mat-name">${p.name||'Unnamed project'}</div><div class="mat-origin">${p.address||''}</div></td>
+              <td style="font-size:12px">${client?.name||'—'}</td>
+              <td style="font-size:12px">${matCount} catalogued</td>
+              <td><span class="badge ${p.status==='Active'?'badge-green':p.status==='Complete'?'badge-moss':'badge-amber'}">${p.status||'Active'}</span></td>
+              <td style="font-size:11px;color:var(--stone)">${fmtDate(p.createdAt)}</td>
+            </tr>`;
+          }).join('')}
+        </table>` : `<div class="panel-body"><div style="font-size:12px;color:var(--stone)">No projects yet. Add a client to start.</div></div>`}
+      </div>
+    </div>`;
+  } catch(e) {
+    document.getElementById('mainContent').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Could not load data</div><div class="empty-sub">${e.message}</div></div>`;
+  }
+}
+
+// ─── ADMIN: CLIENTS ──────────────────────────────────────────────────────────
+async function renderClients() {
+  document.getElementById('topbarRight').innerHTML = `<button class="btn btn-timber" onclick="openNewClientSheet()">+ New Client</button>`;
+  document.getElementById('mainContent').innerHTML = '<div class="spinner"></div>';
+  try {
+    const snap = await window.FB.getDocs(window.FB.collection(window.FB.db, 'clients'));
+    state.clients = snap.docs.map(d => ({id:d.id,...d.data()}));
+    if (!state.clients.length) {
+      document.getElementById('mainContent').innerHTML = `<div class="empty"><div class="empty-icon">👥</div><div class="empty-title">No clients yet</div><div class="empty-sub">Add your first FCD client to get started.</div><br><button class="btn btn-timber" onclick="openNewClientSheet()">+ Add Client</button></div>`;
+      return;
+    }
+    document.getElementById('mainContent').innerHTML = `<div class="fu">
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">All Clients (${state.clients.length})</div></div>
+        <table class="tbl">
+          <tr><th>Name</th><th>Email</th><th>Location</th><th>Tier</th><th>Added</th><th></th></tr>
+          ${state.clients.map(c=>`
+          <tr onclick="openClientSheet('${c.id}')">
+            <td><div class="mat-name">${c.name||'—'}</div></td>
+            <td style="font-size:12px;color:var(--stone)">${c.email||'—'}</td>
+            <td style="font-size:12px">${c.address||'—'}</td>
+            <td><span class="badge ${c.subscriptionTier==='paid'?'badge-green':'badge-stone'}">${c.subscriptionTier||'free'}</span></td>
+            <td style="font-size:11px;color:var(--stone)">${fmtDate(c.createdAt)}</td>
+            <td><button class="btn btn-sm" onclick="event.stopPropagation();openClientSheet('${c.id}')">View →</button></td>
+          </tr>`).join('')}
+        </table>
+      </div></div>`;
+  } catch(e) { toast('Error loading clients: ' + e.message); }
+}
+
+// ─── ADMIN: BRIEFS ───────────────────────────────────────────────────────────
+async function renderBriefs() {
+  document.getElementById('topbarRight').innerHTML = '';
+  document.getElementById('mainContent').innerHTML = '<div class="spinner"></div>';
+  try {
+    const snap = await window.FB.getDocs(window.FB.collection(window.FB.db, 'briefs'));
+    state.briefs = snap.docs.map(d => ({id:d.id,...d.data()}));
+    const newBriefs = state.briefs.filter(b=>b.status==='new');
+    const reviewedBriefs = state.briefs.filter(b=>b.status!=='new');
+    document.getElementById('mainContent').innerHTML = `<div class="fu">
+      ${!state.briefs.length ? `<div class="empty"><div class="empty-icon">📬</div><div class="empty-title">No briefs yet</div><div class="empty-sub">When clients submit project briefs, they'll appear here.</div></div>` : ''}
+      ${newBriefs.length ? `<div class="section-lbl">New — ${newBriefs.length} awaiting review</div>
+        ${newBriefs.map(b=>briefCard(b, true)).join('')}` : ''}
+      ${reviewedBriefs.length ? `<div class="section-lbl">Reviewed</div>
+        ${reviewedBriefs.map(b=>briefCard(b, false)).join('')}` : ''}
+    </div>`;
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+function briefCard(b, isNew) {
+  return `<div class="proj-card" onclick="openBriefSheet('${b.id}')">
+    <div class="proj-card-head">
+      <div>
+        <div class="proj-card-name">${b.clientName||b.clientEmail||'Anonymous'}</div>
+        <div class="proj-card-addr">${b.address||'No address'}</div>
+      </div>
+      <span class="badge ${isNew?'badge-amber':'badge-stone'}">${isNew?'New':'Reviewed'}</span>
+    </div>
+    <div style="font-size:12px;color:var(--stone);line-height:1.5;margin-bottom:8px">${(b.materialsDescription||'').substring(0,120)}${b.materialsDescription?.length>120?'...':''}</div>
+    <div style="font-size:10px;color:var(--stone)">${fmtDate(b.submittedAt)}</div>
+  </div>`;
+}
+
+// ─── ADMIN: MATERIAL LIBRARY ─────────────────────────────────────────────────
+async function renderMaterialLibrary() {
+  document.getElementById('topbarRight').innerHTML = `<button class="btn btn-timber" onclick="openLogMaterialSheet()">+ Log Material</button>`;
+  document.getElementById('mainContent').innerHTML = '<div class="spinner"></div>';
+  try {
+    const snap = await window.FB.getDocs(window.FB.collection(window.FB.db, 'materials'));
+    state.materials = snap.docs.map(d => ({id:d.id,...d.data()}));
+    const byType = {};
+    state.materials.forEach(m => { byType[m.type||'Other'] = (byType[m.type||'Other']||0)+1; });
+
+    document.getElementById('mainContent').innerHTML = `<div class="fu">
+      <div class="stats-row fu1" style="grid-template-columns:repeat(5,1fr)">
+        <div class="stat s1"><div class="stat-lbl">Total</div><div class="stat-val">${state.materials.length}</div></div>
+        <div class="stat s2"><div class="stat-lbl">Available</div><div class="stat-val">${state.materials.filter(m=>m.status==='Available').length}</div></div>
+        <div class="stat s3"><div class="stat-lbl">Processing</div><div class="stat-val">${state.materials.filter(m=>m.status==='Processing').length}</div></div>
+        <div class="stat s4"><div class="stat-lbl">Pending Signoff</div><div class="stat-val">${state.materials.filter(m=>m.signoffStatus==='Pending').length}</div></div>
+        <div class="stat s5"><div class="stat-lbl">Timber</div><div class="stat-val">${byType['Timber']||0}</div></div>
+      </div>
+      <div class="panel fu2">
+        <div class="panel-head">
+          <div class="panel-title">All Materials</div>
+          <select class="form-select" style="width:160px;font-size:12px;padding:6px 10px" id="matFilter" onchange="filterMaterials()">
+            <option value="">All structures</option>
+            ${[...new Set(state.materials.map(m=>m.projectName).filter(Boolean))].map(n=>`<option value="${n}">${n}</option>`).join('')}
+          </select>
+        </div>
+        <table class="tbl" id="matTable">
+          <tr><th>Material</th><th>Type</th><th>Condition</th><th>Status</th><th>Signoff</th><th>Future Use</th><th></th></tr>
+          ${state.materials.map(m=>materialRow(m)).join('')}
+        </table>
+        ${!state.materials.length ? '<div class="panel-body"><div style="font-size:12px;color:var(--stone)">No materials yet. Use "Log Material" to add your first item.</div></div>' : ''}
+      </div></div>`;
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+function materialRow(m) {
+  return `<tr onclick="openMaterialSheet('${m.id}')">
+    <td><div class="mat-name">${m.name||'Unnamed'}</div><div class="mat-origin">${m.projectName||''} · ${m.locationInStructure||''}</div></td>
+    <td>${tagHtml(m.type)}</td>
+    <td style="font-size:11px">${m.condition||'—'}</td>
+    <td style="font-size:11px">${statusDot(m.status)}</td>
+    <td><span style="font-size:10px;padding:2px 7px;border-radius:3px;background:${m.signoffStatus==='Approved'?'#EAF3DE':'#FAEEDA'};color:${m.signoffStatus==='Approved'?'#27500A':'#633806'}">${m.signoffStatus||'Pending'}</span></td>
+    <td>${(m.futureUse||[]).map(u=>`<span class="use-badge">${u}</span>`).join('')}</td>
+    <td><button class="btn btn-sm" onclick="event.stopPropagation();openMaterialSheet('${m.id}')">→</button></td>
+  </tr>`;
+}
+
+function filterMaterials() {
+  const val = document.getElementById('matFilter').value;
+  const filtered = val ? state.materials.filter(m=>m.projectName===val) : state.materials;
+  const body = document.getElementById('matTable');
+  if (body) {
+    const rows = filtered.map(m=>materialRow(m)).join('');
+    body.innerHTML = `<tr><th>Material</th><th>Type</th><th>Condition</th><th>Status</th><th>Signoff</th><th>Future Use</th><th></th></tr>${rows}`;
+  }
+}
+
+// ─── ADMIN: SIGNOFFS ─────────────────────────────────────────────────────────
+async function renderSignoffs() {
+  document.getElementById('topbarRight').innerHTML = '';
+  document.getElementById('mainContent').innerHTML = '<div class="spinner"></div>';
+  try {
+    const snap = await window.FB.getDocs(window.FB.collection(window.FB.db, 'materials'));
+    state.materials = snap.docs.map(d => ({id:d.id,...d.data()}));
+    const pending  = state.materials.filter(m=>m.signoffStatus==='Pending');
+    const approved = state.materials.filter(m=>m.signoffStatus==='Approved');
+    document.getElementById('mainContent').innerHTML = `<div class="fu">
+      ${pending.length ? `<div class="section-lbl">Pending (${pending.length})</div>
+      <div class="panel fu1">
+        ${pending.map(m=>`<div class="sig-bar">
+          <div><div class="sig-lbl">${m.name}</div><div class="sig-sub">${m.projectName||''} · ${m.locationInStructure||''} · ${m.condition||''}</div></div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-moss btn-sm" onclick="approveSignoff('${m.id}')">Approve</button>
+            <button class="btn btn-sm btn-danger" onclick="flagSignoff('${m.id}')">Flag</button>
+          </div>
+        </div>`).join('')}
+      </div>` : '<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">All clear</div><div class="empty-sub">No pending signoffs.</div></div>'}
+      ${approved.length ? `<div class="section-lbl">Approved (${approved.length})</div>
+      <div class="panel">
+        ${approved.slice(0,10).map(m=>`<div class="sig-bar">
+          <div><div class="sig-lbl">${m.name}</div><div class="sig-sub">${m.projectName||''}</div></div>
+          <span class="badge badge-green">Approved</span>
+        </div>`).join('')}
+      </div>` : ''}
+    </div>`;
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+async function approveSignoff(materialId) {
+  try {
+    await window.FB.updateDoc(window.FB.doc(window.FB.db, 'materials', materialId), { signoffStatus: 'Approved', approvedAt: window.FB.serverTimestamp() });
+    toast('Approved ✓');
+    renderSignoffs();
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+async function flagSignoff(materialId) {
+  try {
+    await window.FB.updateDoc(window.FB.doc(window.FB.db, 'materials', materialId), { signoffStatus: 'Flagged' });
+    toast('Flagged');
+    renderSignoffs();
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+// ─── ADMIN: PRODUCTS ─────────────────────────────────────────────────────────
+async function renderProducts() {
+  document.getElementById('topbarRight').innerHTML = `<button class="btn btn-timber" onclick="openAddProductSheet()">+ Add Product</button>`;
+  document.getElementById('mainContent').innerHTML = '<div class="spinner"></div>';
+  try {
+    const snap = await window.FB.getDocs(window.FB.collection(window.FB.db, 'products'));
+    const products = snap.docs.map(d=>({id:d.id,...d.data()}));
+    document.getElementById('mainContent').innerHTML = `<div class="fu">
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Product Catalogue (${products.length})</div><span style="font-size:11px;color:var(--stone)">Visible to paid subscribers only</span></div>
+        ${products.length ? `<table class="tbl">
+          <tr><th>Product</th><th>Price Range</th><th>Lead Time</th><th>Visibility</th><th></th></tr>
+          ${products.map(p=>`<tr onclick="openEditProductSheet('${p.id}')">
+            <td><div class="mat-name">${p.name}</div><div class="mat-origin">${(p.description||'').substring(0,60)}</div></td>
+            <td style="font-size:12px">${p.priceRange||'POA'}</td>
+            <td style="font-size:12px">${p.leadTime||'—'}</td>
+            <td><span class="badge ${p.visible?'badge-green':'badge-stone'}">${p.visible?'Visible':'Hidden'}</span></td>
+            <td><button class="btn btn-sm" onclick="event.stopPropagation();openEditProductSheet('${p.id}')">Edit</button></td>
+          </tr>`).join('')}
+        </table>` : '<div class="panel-body"><div style="font-size:12px;color:var(--stone)">No products yet. Add your first product to the catalogue.</div></div>'}
+      </div>
+    </div>`;
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+// ─── ADMIN: STORIES ───────────────────────────────────────────────────────────
+async function renderStories() {
+  document.getElementById('topbarRight').innerHTML = '';
+  document.getElementById('mainContent').innerHTML = '<div class="spinner"></div>';
+  try {
+    const snap = await window.FB.getDocs(window.FB.collection(window.FB.db, 'projects'));
+    const projects = snap.docs.map(d=>({id:d.id,...d.data()}));
+    const withStory = projects.filter(p=>p.storyPublished);
+    const withDraft = projects.filter(p=>p.storyDraft && !p.storyPublished);
+    document.getElementById('mainContent').innerHTML = `<div class="fu">
+      ${withStory.length ? `<div class="section-lbl">Published Stories (${withStory.length})</div>
+        ${withStory.map(p=>`<div class="proj-card" onclick="viewStory('${p.id}')">
+          <div class="proj-card-head"><div class="proj-card-name">${p.name}</div><span class="badge badge-green">Published</span></div>
+          <div class="proj-card-addr">${p.address||''}</div>
+        </div>`).join('')}` : ''}
+      ${withDraft.length ? `<div class="section-lbl">Draft Stories (${withDraft.length})</div>
+        ${withDraft.map(p=>`<div class="proj-card">
+          <div class="proj-card-head"><div class="proj-card-name">${p.name}</div><span class="badge badge-amber">Draft</span></div>
+          <div class="proj-card-addr">${p.address||''}</div>
+        </div>`).join('')}` : ''}
+      ${!withStory.length && !withDraft.length ? '<div class="empty"><div class="empty-icon">📖</div><div class="empty-title">No stories yet</div><div class="empty-sub">Stories are generated from completed projects. Complete a commission to unlock the story engine.</div></div>' : ''}
+    </div>`;
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+// ─── ADMIN: STATS ─────────────────────────────────────────────────────────────
+async function renderStats() {
+  document.getElementById('topbarRight').innerHTML = '';
+  document.getElementById('mainContent').innerHTML = '<div class="spinner"></div>';
+  try {
+    const [cSnap, pSnap, mSnap, bSnap] = await Promise.all([
+      window.FB.getDocs(window.FB.collection(window.FB.db, 'clients')),
+      window.FB.getDocs(window.FB.collection(window.FB.db, 'projects')),
+      window.FB.getDocs(window.FB.collection(window.FB.db, 'materials')),
+      window.FB.getDocs(window.FB.collection(window.FB.db, 'briefs')),
+    ]);
+    const clients = cSnap.docs.map(d=>d.data());
+    const projects = pSnap.docs.map(d=>d.data());
+    const materials = mSnap.docs.map(d=>d.data());
+    const briefs = bSnap.docs.map(d=>d.data());
+    const byType = {};
+    materials.forEach(m=>{byType[m.type||'Other']=(byType[m.type||'Other']||0)+1});
+    const totalValue = projects.reduce((s,p)=>s+(parseFloat(p.quotedValue)||0),0);
+
+    document.getElementById('mainContent').innerHTML = `<div class="fu">
+      <div class="stats-row fu1">
+        <div class="stat s1"><div class="stat-lbl">Total Clients</div><div class="stat-val">${clients.length}</div></div>
+        <div class="stat s2"><div class="stat-lbl">Active Projects</div><div class="stat-val">${projects.filter(p=>p.status==='Active').length}</div></div>
+        <div class="stat s3"><div class="stat-lbl">Materials</div><div class="stat-val">${materials.length}</div></div>
+        <div class="stat s4"><div class="stat-lbl">Pipeline Value</div><div class="stat-val">$${(totalValue/1000).toFixed(0)}k</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px" class="fu2">
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">Materials by Type</div></div>
+          <div class="panel-body">
+            ${Object.entries(byType).map(([type, count])=>`
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              ${tagHtml(type)}
+              <div class="prog-bar" style="flex:1;margin:0"><div class="prog-fill" style="width:${Math.round(count/materials.length*100)}%"></div></div>
+              <span style="font-size:12px;min-width:24px;text-align:right">${count}</span>
+            </div>`).join('')}
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">Brief Pipeline</div></div>
+          <div class="panel-body">
+            <div class="info-row"><div class="info-key">Total Briefs</div><div class="info-val">${briefs.length}</div></div>
+            <div class="info-row"><div class="info-key">New</div><div class="info-val">${briefs.filter(b=>b.status==='new').length}</div></div>
+            <div class="info-row"><div class="info-key">Converted</div><div class="info-val">${briefs.filter(b=>b.status==='converted').length}</div></div>
+            <div class="info-row"><div class="info-key">Paid Subscribers</div><div class="info-val">${clients.filter(c=>c.subscriptionTier==='paid').length}</div></div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+// ─── CLIENT: OVERVIEW ────────────────────────────────────────────────────────
+async function renderClientOverview() {
+  const user = window.currentUser;
+  document.getElementById('topbarRight').innerHTML = `<button class="btn btn-timber" onclick="navTo('my-brief')">Submit a New Brief</button>`;
+  document.getElementById('mainContent').innerHTML = '<div class="spinner"></div>';
+
+  try {
+    const q = window.FB.query(window.FB.collection(window.FB.db, 'projects'), window.FB.where('clientEmail','==',user.email));
+    const snap = await window.FB.getDocs(q);
+    const projects = snap.docs.map(d=>({id:d.id,...d.data()}));
+
+    let totalMats = 0;
+    const matSnaps = await Promise.all(projects.map(p=>
+      window.FB.getDocs(window.FB.query(window.FB.collection(window.FB.db,'materials'), window.FB.where('projectId','==',p.id)))
+    ));
+    matSnaps.forEach(s=>{ totalMats += s.size; });
+
+    document.getElementById('mainContent').innerHTML = `<div class="fu">
+      <div class="stats-row fu1">
+        <div class="stat s1"><div class="stat-lbl">My Projects</div><div class="stat-val">${projects.length}</div><div class="stat-sub">With TWR</div></div>
+        <div class="stat s2"><div class="stat-lbl">Materials</div><div class="stat-val">${totalMats}</div><div class="stat-sub">Catalogued</div></div>
+        <div class="stat s3"><div class="stat-lbl">Active</div><div class="stat-val">${projects.filter(p=>p.status==='Active').length}</div><div class="stat-sub">In progress</div></div>
+        <div class="stat s4"><div class="stat-lbl">Complete</div><div class="stat-val">${projects.filter(p=>p.status==='Complete').length}</div><div class="stat-sub">Delivered</div></div>
+      </div>
+
+      ${projects.length ? `
+      <div class="section-lbl fu2">Your Project History</div>
+      ${projects.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)).map(p=>`
+      <div class="proj-card fu3" onclick="openClientProjectSheet('${p.id}')">
+        <div class="proj-card-head">
+          <div>
+            <div class="proj-card-name">${p.name||'Unnamed Project'}</div>
+            <div class="proj-card-addr">${p.address||''}</div>
+          </div>
+          <span class="badge ${p.status==='Complete'?'badge-moss':p.status==='Active'?'badge-green':'badge-amber'}">${p.status||'Active'}</span>
+        </div>
+        <div class="prog-bar"><div class="prog-fill" style="width:${p.progress||10}%"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--stone);margin-top:2px">
+          <span>${p.progress||0}% complete</span>
+          <span>Started ${fmtDate(p.createdAt)}</span>
+        </div>
+      </div>`).join('')}` : `
+      <div class="paywall fu2">
+        <div class="paywall-icon">🪵</div>
+        <div class="paywall-title">Your FCD journey starts here</div>
+        <div class="paywall-desc">Submit your brief and Dave will assess your property's salvageable materials. The story of what can be made from what you already have begins with one conversation.</div>
+        <button class="btn btn-timber" onclick="navTo('my-brief')">Submit Your Brief</button>
+      </div>`}
+    </div>`;
+  } catch(e) {
+    document.getElementById('mainContent').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Could not load</div><div class="empty-sub">${e.message}</div></div>`;
+  }
+}
+
+// ─── CLIENT: BRIEF SUBMISSION ─────────────────────────────────────────────────
+function renderMyBrief() {
+  document.getElementById('topbarRight').innerHTML = '';
+  document.getElementById('mainContent').innerHTML = `<div class="fu">
+    <div class="panel">
+      <div class="panel-head"><div class="panel-title">Submit Your Project Brief</div></div>
+      <div class="panel-body">
+        <p style="font-size:13px;color:var(--stone);line-height:1.7;margin-bottom:20px">Tell us about your property and what you think you might have. Dave will review your brief and reach out to arrange a site visit — or provide an initial assessment based on what you share here.</p>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Property Address</label>
+            <input class="form-input" id="bf-address" placeholder="Property address" oninput="updateMapPreview()">
+            <div class="form-hint">We'll use this to research your property's history.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Property Type</label>
+            <select class="form-select" id="bf-proptype">
+              <option>Federation / Edwardian (pre-1920)</option>
+              <option>Interwar (1920–1945)</option>
+              <option>Post-war (1945–1970)</option>
+              <option>Contemporary</option>
+              <option>Rural / Farm</option>
+              <option>Industrial / Commercial</option>
+              <option>Heritage Listed</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+        <div id="mapPreview" style="margin-bottom:16px"></div>
+        <div class="form-group">
+          <label class="form-label">What materials do you think you have?</label>
+          <textarea class="form-textarea" id="bf-materials" placeholder="e.g. Original hardwood floorboards throughout (spotted gum or similar), a staircase with turned balusters, some exposed brick in the kitchen, leadlight glass in the front door..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">What are you hoping to achieve?</label>
+          <textarea class="form-textarea" id="bf-goals" placeholder="e.g. We're renovating and want to preserve as much of the original material as possible. Ideally we'd like a dining table and some shelving made from our own floorboards..."></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Photo / Video Links (optional)</label>
+            <input class="form-input" id="bf-photos" placeholder="https://drive.google.com/... or https://youtube.com/...">
+            <div class="form-hint">Google Drive, YouTube, or any shareable link.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Timeline / Urgency</label>
+            <select class="form-select" id="bf-timeline">
+              <option>Just exploring — no rush</option>
+              <option>Planning ahead (6–12 months)</option>
+              <option>Active project (1–6 months)</option>
+              <option>Urgent (under 1 month)</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-timber btn-full" style="margin-top:8px" onclick="submitBrief()" id="submitBriefBtn">Submit Brief to Dave</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+let mapTimer;
+function updateMapPreview() {
+  clearTimeout(mapTimer);
+  mapTimer = setTimeout(() => {
+    const addr = document.getElementById('bf-address').value.trim();
+    if (addr.length > 8) {
+      document.getElementById('mapPreview').innerHTML = mapEmbed(addr);
+    }
+  }, 800);
+}
+
+async function submitBrief() {
+  const user = window.currentUser;
+  const address = document.getElementById('bf-address').value.trim();
+  if (!address) { toast('Please enter your property address'); return; }
+
+  const btn = document.getElementById('submitBriefBtn');
+  btn.disabled = true; btn.textContent = 'Submitting...';
+
+  try {
+    await window.FB.addDoc(window.FB.collection(window.FB.db, 'briefs'), {
+      clientEmail: user.email,
+      clientName: user.name || user.email,
+      clientUid: user.uid,
+      address,
+      propertyType: document.getElementById('bf-proptype').value,
+      materialsDescription: document.getElementById('bf-materials').value,
+      goalsDescription: document.getElementById('bf-goals').value,
+      photoLinks: document.getElementById('bf-photos').value,
+      timeline: document.getElementById('bf-timeline').value,
+      status: 'new',
+      submittedAt: window.FB.serverTimestamp(),
+    });
+    toast('Brief submitted! Dave will be in touch soon. 🪵');
+    setTimeout(() => navTo('my-overview'), 1500);
+  } catch(e) {
+    toast('Error submitting: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = 'Submit Brief to Dave';
+  }
+}
+
+// ─── CLIENT: MY MATERIALS ─────────────────────────────────────────────────────
+async function renderMyMaterials() {
+  const user = window.currentUser;
+  document.getElementById('topbarRight').innerHTML = '';
+  document.getElementById('mainContent').innerHTML = '<div class="spinner"></div>';
+  try {
+    const q = window.FB.query(window.FB.collection(window.FB.db,'materials'), window.FB.where('clientEmail','==',user.email));
+    const snap = await window.FB.getDocs(q);
+    const mats = snap.docs.map(d=>({id:d.id,...d.data()}));
+
+    if (!mats.length) {
+      document.getElementById('mainContent').innerHTML = `<div class="paywall fu">
+        <div class="paywall-icon">🔍</div>
+        <div class="paywall-title">No materials catalogued yet</div>
+        <div class="paywall-desc">Once Dave visits your property and begins cataloguing your materials, they'll appear here — with condition assessments, future use suggestions, and signoff status.</div>
+        <button class="btn btn-timber" onclick="navTo('my-brief')">Submit Your Brief</button>
+      </div>`;
+      return;
+    }
+
+    document.getElementById('mainContent').innerHTML = `<div class="fu">
+      <div class="stats-row fu1">
+        <div class="stat s1"><div class="stat-lbl">Total</div><div class="stat-val">${mats.length}</div></div>
+        <div class="stat s2"><div class="stat-lbl">Available</div><div class="stat-val">${mats.filter(m=>m.status==='Available').length}</div></div>
+        <div class="stat s3"><div class="stat-lbl">Processing</div><div class="stat-val">${mats.filter(m=>m.status==='Processing').length}</div></div>
+        <div class="stat s4"><div class="stat-lbl">Approved</div><div class="stat-val">${mats.filter(m=>m.signoffStatus==='Approved').length}</div></div>
+      </div>
+      <div class="panel fu2">
+        <div class="panel-head"><div class="panel-title">Your Catalogued Materials</div></div>
+        <table class="tbl">
+          <tr><th>Material</th><th>Type</th><th>Condition</th><th>Status</th><th>Future Use</th></tr>
+          ${mats.map(m=>`<tr onclick="openClientMaterialSheet('${m.id}')">
+            <td><div class="mat-name">${m.name}</div><div class="mat-origin">${m.locationInStructure||''}</div></td>
+            <td>${tagHtml(m.type)}</td>
+            <td style="font-size:11px">${m.condition||'—'}</td>
+            <td style="font-size:11px">${statusDot(m.status)}</td>
+            <td>${(m.futureUse||[]).map(u=>`<span class="use-badge">${u}</span>`).join('')}</td>
+          </tr>`).join('')}
+        </table>
+      </div>
+    </div>`;
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+// ─── CLIENT: JOURNAL ──────────────────────────────────────────────────────────
+async function renderMyJournal() {
+  const user = window.currentUser;
+  document.getElementById('topbarRight').innerHTML = `<button class="btn btn-timber" onclick="openAddJournalSheet()">+ Add Entry</button>`;
+  document.getElementById('mainContent').innerHTML = '<div class="spinner"></div>';
+  try {
+    const q = window.FB.query(window.FB.collection(window.FB.db,'journal'), window.FB.where('clientEmail','==',user.email), window.FB.orderBy('createdAt','desc'));
+    const snap = await window.FB.getDocs(q);
+    const entries = snap.docs.map(d=>({id:d.id,...d.data()}));
+
+    document.getElementById('mainContent').innerHTML = `<div class="fu">
+      ${entries.length ? entries.map(e=>`
+      <div class="journal-entry fu1">
+        <div class="journal-date">${fmtDate(e.createdAt)} ${e.milestone?'<span class="badge badge-amber" style="margin-left:6px">Milestone</span>':''}</div>
+        <div style="font-family:var(--serif);font-size:15px;font-weight:500;color:var(--bark);margin-bottom:5px">${e.title||'Journal Entry'}</div>
+        <div class="journal-body">${e.body||''}</div>
+        ${e.photoLinks ? `<div style="margin-top:8px"><a href="${e.photoLinks}" target="_blank" style="font-size:11px;color:var(--timber)">View media →</a></div>` : ''}
+        <div class="journal-author">by ${e.authorName||'Dave'}</div>
+      </div>`).join('') : `<div class="empty"><div class="empty-icon">📖</div><div class="empty-title">No journal entries yet</div><div class="empty-sub">Dave will add project updates here as your commission progresses. You can add notes too.</div></div>`}
+    </div>`;
+  } catch(e) {
+    // orderBy requires index — fallback without ordering
+    try {
+      const q2 = window.FB.query(window.FB.collection(window.FB.db,'journal'), window.FB.where('clientEmail','==',user.email));
+      const snap2 = await window.FB.getDocs(q2);
+      const entries = snap2.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+      document.getElementById('mainContent').innerHTML = `<div class="fu">${entries.length ? entries.map(e=>`<div class="journal-entry"><div class="journal-date">${fmtDate(e.createdAt)}</div><div style="font-family:var(--serif);font-size:15px;font-weight:500;margin-bottom:5px">${e.title||''}</div><div class="journal-body">${e.body||''}</div></div>`).join('') : '<div class="empty"><div class="empty-icon">📖</div><div class="empty-title">No entries yet</div></div>'}</div>`;
+    } catch(e2) { toast('Error: ' + e2.message); }
+  }
+}
+
+// ─── CLIENT: MY STORY ────────────────────────────────────────────────────────
+async function renderMyStory() {
+  const user = window.currentUser;
+  document.getElementById('topbarRight').innerHTML = '';
+  document.getElementById('mainContent').innerHTML = '<div class="spinner"></div>';
+  try {
+    const q = window.FB.query(window.FB.collection(window.FB.db,'projects'), window.FB.where('clientEmail','==',user.email));
+    const snap = await window.FB.getDocs(q);
+    const projects = snap.docs.map(d=>({id:d.id,...d.data()})).filter(p=>p.storyDraft||p.storyPublished);
+
+    if (!projects.length) {
+      document.getElementById('mainContent').innerHTML = `<div class="paywall fu">
+        <div class="paywall-icon">✨</div>
+        <div class="paywall-title">Your story is being written</div>
+        <div class="paywall-desc">Once your commission is complete, Dave will craft your project story — from the property, to the salvage, to the finished piece. It's yours to keep, share, and pass on forever.</div>
+        <button class="btn btn-timber" onclick="navTo('my-brief')">Start Your Project</button>
+      </div>`;
+      return;
+    }
+
+    const p = projects[0];
+    document.getElementById('mainContent').innerHTML = `<div class="fu">
+      <div class="story-hero fu1">
+        <div class="story-eyebrow">Full Circle Design · Your Story</div>
+        <div class="story-title">${p.storyTitle || p.name}</div>
+        <div class="story-sub">${p.address||''} · ${p.storyDraft ? 'Draft — private' : 'Published'}</div>
+      </div>
+
+      ${p.storyBody ? `<div class="story-section fu2"><div class="story-section-title">The Story</div><div class="story-body">${p.storyBody}</div></div>` : ''}
+
+      <div class="cert-card fu3">
+        <div class="cert-title">${p.name||'Your Commission'}</div>
+        <div class="cert-sub">Provenance Certificate · The Wattle Road</div>
+        <div class="divider"></div>
+        <div class="info-row"><div class="info-key">Property</div><div class="info-val">${p.address||'—'}</div></div>
+        <div class="info-row"><div class="info-key">Craftsperson</div><div class="info-val">Dave Waddell · The Wattle Road</div></div>
+        <div class="info-row"><div class="info-key">Completed</div><div class="info-val">${fmtDate(p.completedAt)||'In progress'}</div></div>
+      </div>
+
+      ${!p.storyPublished ? `
+      <div style="background:var(--timber-g);border:1px solid var(--sand);border-radius:var(--r);padding:20px;text-align:center;margin-top:16px" class="fu4">
+        <div style="font-family:var(--serif);font-size:18px;color:var(--bark);margin-bottom:6px">Your story is ready to share</div>
+        <div style="font-size:12px;color:var(--stone);line-height:1.6;margin-bottom:16px">Make it public and share it with the world. Everyone who sees it will want one.</div>
+        <button class="btn btn-timber" onclick="showPublishMoment('${p.id}')">Share My Story</button>
+      </div>` : `
+      <div style="text-align:center;margin-top:12px" class="fu4">
+        <button class="btn btn-timber" onclick="copyStoryLink('${p.id}')">Copy Story Link</button>
+        <button class="btn" style="margin-left:8px" onclick="shareToInstagram()">Share to Instagram</button>
+      </div>`}
+    </div>`;
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+// ─── PUBLISH MOMENT ───────────────────────────────────────────────────────────
+function showPublishMoment(projectId) {
+  const overlay = document.getElementById('publishOverlay');
+  overlay.style.display = 'flex';
+  overlay.innerHTML = `
+    <div style="text-align:center;max-width:440px">
+      <div style="font-size:48px;margin-bottom:16px">🪵</div>
+      <div class="publish-title">Your story is ready.</div>
+      <div class="publish-sub">Make it public and share it with the world.<br>Everyone who sees it will want one.</div>
+      <div style="display:flex;flex-direction:column;gap:10px;max-width:280px;margin:0 auto">
+        <button class="btn btn-timber btn-full" style="padding:14px" onclick="publishStory('${projectId}')">Publish My Story</button>
+        <button class="btn btn-full" style="color:rgba(255,255,255,.5);border-color:rgba(255,255,255,.2);padding:14px" onclick="document.getElementById('publishOverlay').style.display='none'">Not yet — keep it private</button>
+      </div>
+    </div>`;
+}
+
+async function publishStory(projectId) {
+  try {
+    await window.FB.updateDoc(window.FB.doc(window.FB.db,'projects',projectId), { storyPublished: true, publishedAt: window.FB.serverTimestamp() });
+    document.getElementById('publishOverlay').style.display = 'none';
+    toast('Your story is live! 🎉');
+    renderMyStory();
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+function copyStoryLink(id) {
+  navigator.clipboard.writeText(window.location.origin + '?story=' + id).then(()=>toast('Link copied!')).catch(()=>toast('Copy link: ' + window.location.origin + '?story=' + id));
+}
+
+function shareToInstagram() {
+  toast('Open Instagram and paste your story link in your bio or story.');
+}
+
+// ─── CLIENT: TWR PRODUCTS ────────────────────────────────────────────────────
+async function renderTWRProducts() {
+  const user = window.currentUser;
+  document.getElementById('topbarRight').innerHTML = '';
+  document.getElementById('mainContent').innerHTML = '<div class="spinner"></div>';
+
+  if (user.subscriptionTier !== 'paid') {
+    document.getElementById('mainContent').innerHTML = `<div class="fu">
+      <div class="paywall">
+        <div class="paywall-icon">🔒</div>
+        <div class="paywall-title">TWR Product Catalogue</div>
+        <div class="paywall-desc">The full product catalogue — everything TWR can make from your materials — is available to subscribers. Upgrade to see what's possible with what you have.</div>
+        <button class="btn btn-timber" onclick="toast('Subscription upgrade coming soon — email dave&#64;thewattleroad.com.au')">Upgrade to Paid</button>
+      </div>
+    </div>`;
+    return;
+  }
+
+  try {
+    const snap = await window.FB.getDocs(window.FB.query(window.FB.collection(window.FB.db,'products'), window.FB.where('visible','==',true)));
+    const products = snap.docs.map(d=>({id:d.id,...d.data()}));
+    document.getElementById('mainContent').innerHTML = `<div class="fu">
+      ${products.map(p=>`<div class="proj-card">
+        <div class="proj-card-head"><div class="proj-card-name">${p.name}</div><div style="font-size:12px;font-weight:600;color:var(--timber)">${p.priceRange||'POA'}</div></div>
+        <div style="font-size:12px;color:var(--stone);line-height:1.55;margin-bottom:8px">${p.description||''}</div>
+        <div style="font-size:11px;color:var(--stone)">Lead time: ${p.leadTime||'—'}</div>
+      </div>`).join('')}
+    </div>`;
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+// ─── CLIENT: REFER ───────────────────────────────────────────────────────────
+function renderRefer() {
+  const user = window.currentUser;
+  const refLink = window.location.origin + '?ref=' + btoa(user.email||'');
+  document.getElementById('topbarRight').innerHTML = '';
+  document.getElementById('mainContent').innerHTML = `<div class="fu">
+    <div class="referral-box fu1">
+      <div style="font-family:var(--serif);font-size:22px;font-weight:500;color:var(--bark);margin-bottom:6px">Share the TWR experience</div>
+      <div style="font-size:13px;color:var(--stone);line-height:1.7;margin-bottom:16px">Every piece TWR makes has a story. Share yours — or introduce a friend to the possibility of having something made from their own home.</div>
+      <div class="form-label">Your referral link</div>
+      <div class="ref-link">
+        <span>${refLink}</span>
+        <button class="btn btn-sm btn-timber" onclick="copyRefLink('${refLink}')">Copy</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <button class="btn btn-timber" onclick="copyRefLink('${refLink}')">Copy Link</button>
+        <button class="btn" onclick="shareRefWhatsApp('${refLink}')">Share via WhatsApp</button>
+        <button class="btn" onclick="shareRefEmail()">Share via Email</button>
+      </div>
+    </div>
+
+    <div class="panel fu2">
+      <div class="panel-head"><div class="panel-title">How Referrals Work</div></div>
+      <div class="panel-body">
+        <div class="info-row"><div class="info-key">Step 1</div><div class="info-val">Share your link with a friend who has a property with materials worth salvaging</div></div>
+        <div class="info-row"><div class="info-key">Step 2</div><div class="info-val">They submit a brief and Dave reaches out</div></div>
+        <div class="info-row"><div class="info-key">Step 3</div><div class="info-val">When they start a commission, you receive a referral reward</div></div>
+        <div class="info-row"><div class="info-key">Reward</div><div class="info-val">Priority commission slot + exclusive material preview for your next project</div></div>
+      </div>
+    </div>
+
+    <div class="panel fu3">
+      <div class="panel-head"><div class="panel-title">Your Referral Story</div></div>
+      <div class="panel-body">
+        <div style="font-size:13px;color:var(--stone);line-height:1.7;margin-bottom:16px">The most powerful referral is your own story. Share what TWR made from your home — and let the work speak for itself.</div>
+        <button class="btn btn-timber" onclick="navTo('my-story')">View My Story →</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function copyRefLink(link) {
+  navigator.clipboard.writeText(link).then(()=>toast('Link copied!')).catch(()=>toast('Copy: ' + link));
+}
+
+function shareRefWhatsApp(link) {
+  window.open('https://wa.me/?text=' + encodeURIComponent('I thought you might be interested in this — The Wattle Road makes bespoke furniture from the materials in your own home. ' + link));
+}
+
+function shareRefEmail() {
+  window.location.href = 'mailto:?subject=Something worth seeing&body=' + encodeURIComponent("I thought you might appreciate this. The Wattle Road makes bespoke furniture from salvaged materials — sourced from your own home. Worth a look: " + window.location.origin);
+}
+
+// ─── SHEETS: ADMIN ────────────────────────────────────────────────────────────
+function openNewClientSheet() {
+  openSheet(`
+    <div class="sheet-head">
+      <div><div class="sheet-title">New Client</div></div>
+      <button class="sheet-close" onclick="closeSheetDirect()">×</button>
+    </div>
+    <div class="sheet-body">
+      <div class="form-group"><label class="form-label">Full Name</label><input class="form-input" id="nc-name" placeholder="Your full name"></div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="nc-email" type="email" placeholder="client@email.com.au"></div>
+      <div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="nc-phone" placeholder="0400 000 000"></div>
+      <div class="form-group"><label class="form-label">Property Address</label><input class="form-input" id="nc-address" placeholder="Property address" oninput="updateSheetMap()"></div>
+      <div id="sheetMapPreview" style="margin-bottom:14px"></div>
+      <div class="form-group"><label class="form-label">Project Name</label><input class="form-input" id="nc-project" placeholder="Project name"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Project Type</label>
+          <select class="form-select" id="nc-type">
+            <option>Full Circle Design (FCD)</option><option>Material Library</option><option>Furniture Commission</option><option>Heritage Restoration</option><option>Residential Renovation</option><option>Commercial Fitout</option><option>Hospitality</option><option>New Build</option><option>Custom</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Subscription</label>
+          <select class="form-select" id="nc-tier">
+            <option value="free">Free</option><option value="paid">Paid</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="nc-notes" placeholder="How they found TWR, brief overview of what they have..."></textarea></div>
+      <button class="btn btn-timber btn-full" onclick="saveNewClient()">Create Client & Project</button>
+    </div>`);
+}
+
+let sheetMapTimer;
+function updateSheetMap() {
+  clearTimeout(sheetMapTimer);
+  sheetMapTimer = setTimeout(()=>{
+    const addr = document.getElementById('nc-address')?.value.trim() || document.getElementById('ep-address')?.value.trim();
+    if (addr && addr.length > 8) {
+      const el = document.getElementById('sheetMapPreview');
+      if (el) el.innerHTML = mapEmbed(addr);
+    }
+  }, 800);
+}
+
+async function saveNewClient() {
+  const name  = document.getElementById('nc-name').value.trim();
+  const email = document.getElementById('nc-email').value.trim();
+  if (!name || !email) { toast('Name and email are required'); return; }
+  try {
+    const clientRef = await window.FB.addDoc(window.FB.collection(window.FB.db,'clients'), {
+      name, email,
+      phone:   document.getElementById('nc-phone').value.trim(),
+      address: document.getElementById('nc-address').value.trim(),
+      subscriptionTier: document.getElementById('nc-tier').value,
+      notes:   document.getElementById('nc-notes').value.trim(),
+      createdAt: window.FB.serverTimestamp(),
+      createdBy: window.currentUser.uid,
+    });
+    // Also create first project
+    const projName = document.getElementById('nc-project').value.trim();
+    if (projName) {
+      await window.FB.addDoc(window.FB.collection(window.FB.db,'projects'), {
+        name: projName,
+        clientId: clientRef.id,
+        clientEmail: email,
+        clientName: name,
+        address: document.getElementById('nc-address').value.trim(),
+        type: document.getElementById('nc-type').value,
+        status: 'Active', progress: 5,
+        createdAt: window.FB.serverTimestamp(),
+        createdBy: window.currentUser.uid,
+      });
+    }
+    closeSheetDirect();
+    toast('Client created ✓');
+    renderClients();
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+function openLogMaterialSheet(projectId) {
+  openSheet(`
+    <div class="sheet-head">
+      <div><div class="sheet-title">Log Material</div></div>
+      <button class="sheet-close" onclick="closeSheetDirect()">×</button>
+    </div>
+    <div class="sheet-body">
+      <div class="form-group"><label class="form-label">Material Name</label><input class="form-input" id="lm-name" placeholder="e.g. Spotted Gum floorboards"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Type</label>
+          <select class="form-select" id="lm-type">
+            <option>Timber</option><option>Masonry</option><option>Metal</option>
+            <option>Glass</option><option>Fixtures & fittings</option><option>Other</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Condition</label>
+          <select class="form-select" id="lm-condition">
+            <option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Project / Client</label>
+        <select class="form-select" id="lm-project">
+          <option value="">Select project...</option>
+          ${state.projects.map(p=>`<option value="${p.id}" data-client="${p.clientEmail}" data-name="${p.name}">${p.name} — ${p.clientName||p.clientEmail||''}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Location in Structure</label>
+        <select class="form-select" id="lm-location" onchange="handleLocationChange(this)">
+          <option>Kitchen</option><option>Living room</option><option>Dining room</option>
+          <option>Hallway</option><option>Staircase</option><option>Roof structure</option>
+          <option>Bedroom</option><option>Bathroom</option><option>Laundry</option>
+          <option>Façade</option><option>External</option><option>Garage</option><option>Other</option>
+        </select>
+        <input class="form-input" id="lm-location-custom" placeholder="Describe location..." style="display:none;margin-top:6px">
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Status</label>
+          <select class="form-select" id="lm-status">
+            <option>Available</option><option>Processing</option><option>Allocated</option><option>Storage</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Signoff Required</label>
+          <select class="form-select" id="lm-signoff">
+            <option value="Pending">Yes — pending</option><option value="Approved">Already approved</option><option value="None">Not required</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Future Use (comma separated)</label><input class="form-input" id="lm-futureuse" placeholder="e.g. Dining table, Bench seat"></div>
+      <div class="form-group"><label class="form-label">Dimensions / Quantity</label><input class="form-input" id="lm-dims" placeholder="e.g. ~18m² at 85×19mm, 42 boards"></div>
+      <div class="form-group"><label class="form-label">Video / Photo Links</label><input class="form-input" id="lm-video" placeholder="https://vimeo.com/..."></div>
+      <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="lm-notes" placeholder="Species, finish, joinery marks, notable features..."></textarea></div>
+      <button class="btn btn-timber btn-full" onclick="saveLogMaterial()">Log Material</button>
+    </div>`);
+}
+
+
+function getCustomLocations() {
+  try { return JSON.parse(localStorage.getItem('twr_custom_locations') || '[]'); } catch(e) { return []; }
+}
+function saveCustomLocation(loc) {
+  var ex = getCustomLocations();
+  if (loc && !ex.includes(loc)) { ex.push(loc); localStorage.setItem('twr_custom_locations', JSON.stringify(ex)); }
+}
+function handleLocationChange(sel) {
+  var c = document.getElementById('lm-location-custom');
+  if (c) { c.style.display = sel.value === 'Other' ? 'block' : 'none'; if (sel.value === 'Other') c.focus(); }
+}
+async function loadProjectsThenLog() {
+  if (!state.projects.length) {
+    try {
+      var s = await window.FB.getDocs(window.FB.collection(window.FB.db, 'projects'));
+      state.projects = s.docs.map(function(d) { return Object.assign({id:d.id}, d.data()); });
+      var cs = await window.FB.getDocs(window.FB.collection(window.FB.db, 'clients'));
+      state.clients = cs.docs.map(function(d) { return Object.assign({id:d.id}, d.data()); });
+    } catch(e) { toast('Error: ' + e.message); }
+  }
+  openLogMaterialSheet();
+}
+
+function getCustomLocations() {
+  try { return JSON.parse(localStorage.getItem('twr_custom_locations') || '[]'); } catch(e) { return []; }
+}
+function saveCustomLocation(loc) {
+  var ex = getCustomLocations();
+  if (loc && !ex.includes(loc)) { ex.push(loc); localStorage.setItem('twr_custom_locations', JSON.stringify(ex)); }
+}
+function handleLocationChange(sel) {
+  var c = document.getElementById('lm-location-custom');
+  if (c) { c.style.display = sel.value === 'Other' ? 'block' : 'none'; if (sel.value === 'Other') c.focus(); }
+}
+async function loadProjectsThenLog() {
+  if (!state.projects.length) {
+    try {
+      var s = await window.FB.getDocs(window.FB.collection(window.FB.db, 'projects'));
+      state.projects = s.docs.map(function(d) { return Object.assign({id:d.id}, d.data()); });
+      var cs = await window.FB.getDocs(window.FB.collection(window.FB.db, 'clients'));
+      state.clients = cs.docs.map(function(d) { return Object.assign({id:d.id}, d.data()); });
+    } catch(e) { toast('Error: ' + e.message); }
+  }
+  openLogMaterialSheet();
+}
+async function saveLogMaterial() {
+  const name = document.getElementById('lm-name').value.trim();
+  if (!name) { toast('Material name required'); return; }
+  const projEl = document.getElementById('lm-project');
+  const projId = projEl.value;
+  const projOpt = projEl.options[projEl.selectedIndex];
+  const clientEmail = projOpt?.dataset.client || '';
+  const projectName = projOpt?.dataset.name || '';
+  const futureUse = document.getElementById('lm-futureuse').value.split(',').map(s=>s.trim()).filter(Boolean);
+  try {
+    await window.FB.addDoc(window.FB.collection(window.FB.db,'materials'), {
+      name, type: document.getElementById('lm-type').value,
+      condition: document.getElementById('lm-condition').value,
+      projectId: projId, projectName, clientEmail,
+      locationInStructure: document.getElementById('lm-location').value,
+      status: document.getElementById('lm-status').value,
+      signoffStatus: document.getElementById('lm-signoff').value,
+      futureUse, dimensions: document.getElementById('lm-dims').value,
+      videoLinks: document.getElementById('lm-video').value,
+      notes: document.getElementById('lm-notes').value,
+      createdAt: window.FB.serverTimestamp(),
+      createdBy: window.currentUser.uid,
+    });
+    closeSheetDirect();
+    toast('Material logged ✓');
+    if (state.currentPage === 'materials') renderMaterialLibrary();
+    else if (state.currentPage === 'dashboard') renderAdminDashboard();
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+async function openClientSheet(clientId) {
+  const client = state.clients.find(c=>c.id===clientId);
+  if (!client) return;
+  const projSnap = await window.FB.getDocs(window.FB.query(window.FB.collection(window.FB.db,'projects'), window.FB.where('clientId','==',clientId)));
+  const projects = projSnap.docs.map(d=>({id:d.id,...d.data()}));
+  const matSnap = await window.FB.getDocs(window.FB.query(window.FB.collection(window.FB.db,'materials'), window.FB.where('clientEmail','==',client.email)));
+
+  openSheet(`
+    <div class="sheet-head">
+      <div>
+        <div class="sheet-title">${client.name||'Client'}</div>
+        <div style="font-size:11px;color:var(--stone)">${client.email||''}</div>
+      </div>
+      <button class="sheet-close" onclick="closeSheetDirect()">×</button>
+    </div>
+    <div class="sheet-body">
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <span class="badge ${client.subscriptionTier==='paid'?'badge-green':'badge-stone'}">${client.subscriptionTier||'free'}</span>
+      </div>
+      ${client.address ? `<div style="margin-bottom:14px">${mapEmbed(client.address)}</div>` : ''}
+      <div class="info-row"><div class="info-key">Phone</div><div class="info-val">${client.phone||'—'}</div></div>
+      <div class="info-row"><div class="info-key">Address</div><div class="info-val">${client.address||'—'}</div></div>
+      <div class="info-row"><div class="info-key">Added</div><div class="info-val">${fmtDate(client.createdAt)}</div></div>
+      ${client.notes ? `<div class="info-row"><div class="info-key">Notes</div><div class="info-val">${client.notes}</div></div>` : ''}
+      <div class="divider"></div>
+      <div style="font-family:var(--serif);font-size:15px;margin-bottom:10px">Projects (${projects.length})</div>
+      ${projects.map(p=>`<div class="proj-card" onclick="closeSheetDirect();openProjectSheet('${p.id}')">
+        <div class="proj-card-head"><div class="proj-card-name">${p.name}</div><span class="badge ${p.status==='Active'?'badge-green':'badge-moss'}">${p.status}</span></div>
+        <div class="prog-bar"><div class="prog-fill" style="width:${p.progress||5}%"></div></div>
+      </div>`).join('')}
+      <div style="margin-top:8px;font-size:12px;color:var(--stone)">${matSnap.size} materials catalogued total</div>
+      <div class="divider"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-timber btn-sm" onclick="openLogMaterialSheet()">Log Material</button>
+        <button class="btn btn-sm" onclick="openAddJournalEntryForClient('${client.email}','${client.name}')">Add Journal Entry</button>
+        <button class="btn btn-sm" onclick="upgradeClientTier('${clientId}','paid')">Upgrade to Paid</button>
+      </div>
+    </div>`);
+}
+
+async function openMaterialSheet(materialId) {
+  const mat = state.materials.find(m=>m.id===materialId);
+  if (!mat) return;
+  openSheet(`
+    <div class="sheet-head">
+      <div><div class="sheet-title">${mat.name||'Material'}</div><div style="font-size:11px;color:var(--stone)">${mat.projectName||''}</div></div>
+      <button class="sheet-close" onclick="closeSheetDirect()">×</button>
+    </div>
+    <div class="sheet-body">
+      <div style="display:flex;gap:6px;margin-bottom:14px">${tagHtml(mat.type)}<span class="badge ${mat.signoffStatus==='Approved'?'badge-green':'badge-amber'}">${mat.signoffStatus}</span></div>
+      <div class="info-row"><div class="info-key">Location</div><div class="info-val">${mat.locationInStructure||'—'}</div></div>
+      <div class="info-row"><div class="info-key">Condition</div><div class="info-val">${mat.condition||'—'}</div></div>
+      <div class="info-row"><div class="info-key">Status</div><div class="info-val">${statusDot(mat.status)}</div></div>
+      <div class="info-row"><div class="info-key">Dimensions</div><div class="info-val">${mat.dimensions||'—'}</div></div>
+      <div class="info-row"><div class="info-key">Future Use</div><div class="info-val">${(mat.futureUse||[]).join(', ')||'—'}</div></div>
+      ${mat.notes ? `<div class="info-row"><div class="info-key">Notes</div><div class="info-val">${mat.notes}</div></div>` : ''}
+      ${mat.videoLinks ? `<div class="info-row"><div class="info-key">Media</div><div class="info-val"><a href="${mat.videoLinks}" target="_blank" style="color:var(--timber)">View →</a></div></div>` : ''}
+      <div class="info-row"><div class="info-key">Logged</div><div class="info-val">${fmtDate(mat.createdAt)}</div></div>
+      <div class="divider"></div>
+      <div style="display:flex;gap:8px">
+        ${mat.signoffStatus!=='Approved'?`<button class="btn btn-moss btn-sm" onclick="approveSignoff('${mat.id}');closeSheetDirect()">Approve Signoff</button>`:''}
+        <button class="btn btn-sm btn-danger" onclick="deleteMaterial('${mat.id}')">Delete</button>
+      </div>
+    </div>`);
+}
+
+async function openProjectSheet(projectId) {
+  const proj = state.projects.find(p=>p.id===projectId) || {};
+  const matSnap = await window.FB.getDocs(window.FB.query(window.FB.collection(window.FB.db,'materials'), window.FB.where('projectId','==',projectId)));
+  const mats = matSnap.docs.map(d=>({id:d.id,...d.data()}));
+
+  openSheet(`
+    <div class="sheet-head">
+      <div><div class="sheet-title">${proj.name||'Project'}</div><div style="font-size:11px;color:var(--stone)">${proj.clientName||''} · ${proj.address||''}</div></div>
+      <button class="sheet-close" onclick="closeSheetDirect()">×</button>
+    </div>
+    <div class="sheet-body">
+      ${proj.address ? `<div style="margin-bottom:14px">${mapEmbed(proj.address)}</div>` : ''}
+      <div style="display:flex;gap:6px;margin-bottom:12px">
+        <span class="badge ${proj.status==='Active'?'badge-green':'badge-moss'}">${proj.status||'Active'}</span>
+        <span class="badge badge-stone">${proj.type||''}</span>
+      </div>
+      <div class="prog-bar" style="margin-bottom:4px"><div class="prog-fill" style="width:${proj.progress||5}%"></div></div>
+      <div style="font-size:11px;color:var(--stone);margin-bottom:14px">${proj.progress||5}% complete</div>
+      <div class="info-row"><div class="info-key">Materials</div><div class="info-val">${mats.length} catalogued</div></div>
+      <div class="info-row"><div class="info-key">Quoted</div><div class="info-val">${proj.quotedValue ? '$'+proj.quotedValue : '—'}</div></div>
+      <div class="info-row"><div class="info-key">Started</div><div class="info-val">${fmtDate(proj.createdAt)}</div></div>
+      ${mats.length ? `<div class="section-lbl">Materials</div>
+        <table class="tbl" style="font-size:11px">
+          ${mats.map(m=>`<tr><td>${m.name}</td><td>${tagHtml(m.type)}</td><td>${statusDot(m.status)}</td></tr>`).join('')}
+        </table>` : ''}
+      <div class="divider"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-timber btn-sm" onclick="closeSheetDirect();openLogMaterialSheet('${projectId}')">Log Material</button>
+        <button class="btn btn-sm" onclick="updateProjectProgress('${projectId}',${proj.progress||5})">Update Progress</button>
+      </div>
+    </div>`);
+}
+
+async function openBriefSheet(briefId) {
+  const brief = state.briefs.find(b=>b.id===briefId);
+  if (!brief) return;
+  openSheet(`
+    <div class="sheet-head">
+      <div><div class="sheet-title">${brief.clientName||brief.clientEmail}</div><div style="font-size:11px;color:var(--stone)">Brief submitted ${fmtDate(brief.submittedAt)}</div></div>
+      <button class="sheet-close" onclick="closeSheetDirect()">×</button>
+    </div>
+    <div class="sheet-body">
+      ${brief.address ? `<div style="margin-bottom:14px">${mapEmbed(brief.address)}</div>` : ''}
+      <div class="info-row"><div class="info-key">Address</div><div class="info-val">${brief.address||'—'}</div></div>
+      <div class="info-row"><div class="info-key">Property</div><div class="info-val">${brief.propertyType||'—'}</div></div>
+      <div class="info-row"><div class="info-key">Timeline</div><div class="info-val">${brief.timeline||'—'}</div></div>
+      <div class="info-row"><div class="info-key">Email</div><div class="info-val">${brief.clientEmail||'—'}</div></div>
+      <div class="section-lbl">Materials described</div>
+      <div style="font-size:13px;line-height:1.7;color:var(--bark);margin-bottom:14px">${brief.materialsDescription||'None provided'}</div>
+      <div class="section-lbl">Goals</div>
+      <div style="font-size:13px;line-height:1.7;color:var(--bark);margin-bottom:14px">${brief.goalsDescription||'None provided'}</div>
+      ${brief.photoLinks ? `<div class="info-row"><div class="info-key">Media</div><div class="info-val"><a href="${brief.photoLinks}" target="_blank" style="color:var(--timber)">View →</a></div></div>` : ''}
+      <div class="divider"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-timber btn-sm" onclick="convertBriefToClient('${briefId}')">Convert to Client</button>
+        <button class="btn btn-sm" onclick="markBriefReviewed('${briefId}')">Mark Reviewed</button>
+        <a href="mailto:${brief.clientEmail}" class="btn btn-sm">Reply by Email</a>
+      </div>
+    </div>`);
+}
+
+async function convertBriefToClient(briefId) {
+  const brief = state.briefs.find(b=>b.id===briefId);
+  if (!brief) return;
+  try {
+    await window.FB.addDoc(window.FB.collection(window.FB.db,'clients'), {
+      name: brief.clientName || brief.clientEmail,
+      email: brief.clientEmail,
+      address: brief.address,
+      subscriptionTier: 'free',
+      notes: 'Converted from brief. ' + (brief.materialsDescription||''),
+      createdAt: window.FB.serverTimestamp(),
+    });
+    await window.FB.updateDoc(window.FB.doc(window.FB.db,'briefs',briefId), { status: 'converted' });
+    closeSheetDirect();
+    toast('Converted to client ✓');
+    renderBriefs();
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+async function markBriefReviewed(briefId) {
+  try {
+    await window.FB.updateDoc(window.FB.doc(window.FB.db,'briefs',briefId), { status: 'reviewed' });
+    closeSheetDirect();
+    toast('Marked reviewed');
+    renderBriefs();
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+async function deleteMaterial(materialId) {
+  if (!confirm('Delete this material? This cannot be undone.')) return;
+  try {
+    await window.FB.deleteDoc(window.FB.doc(window.FB.db,'materials',materialId));
+    closeSheetDirect();
+    toast('Deleted');
+    renderMaterialLibrary();
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+async function upgradeClientTier(clientId, tier) {
+  try {
+    await window.FB.updateDoc(window.FB.doc(window.FB.db,'clients',clientId), { subscriptionTier: tier });
+    toast('Subscription updated ✓');
+    closeSheetDirect();
+    renderClients();
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+async function updateProjectProgress(projectId, current) {
+  const val = prompt('Enter progress % (0-100):', current);
+  if (val === null) return;
+  const n = Math.min(100, Math.max(0, parseInt(val)||0));
+  try {
+    await window.FB.updateDoc(window.FB.doc(window.FB.db,'projects',projectId), { progress: n });
+    toast('Progress updated');
+    closeSheetDirect();
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+// ─── CLIENT SHEETS ────────────────────────────────────────────────────────────
+async function openClientProjectSheet(projectId) {
+  const snap = await window.FB.getDoc(window.FB.doc(window.FB.db,'projects',projectId));
+  if (!snap.exists()) return;
+  const p = {id:snap.id,...snap.data()};
+  const matSnap = await window.FB.getDocs(window.FB.query(window.FB.collection(window.FB.db,'materials'), window.FB.where('projectId','==',projectId)));
+  const mats = matSnap.docs.map(d=>({id:d.id,...d.data()}));
+
+  openSheet(`
+    <div class="sheet-head">
+      <div><div class="sheet-title">${p.name}</div><div style="font-size:11px;color:var(--stone)">${p.address||''}</div></div>
+      <button class="sheet-close" onclick="closeSheetDirect()">×</button>
+    </div>
+    <div class="sheet-body">
+      ${p.address ? `<div style="margin-bottom:14px">${mapEmbed(p.address)}</div>` : ''}
+      <div class="prog-bar" style="margin-bottom:4px"><div class="prog-fill" style="width:${p.progress||5}%"></div></div>
+      <div style="font-size:11px;color:var(--stone);margin-bottom:14px">${p.progress||5}% complete</div>
+      <div class="info-row"><div class="info-key">Status</div><div class="info-val"><span class="badge ${p.status==='Active'?'badge-green':'badge-moss'}">${p.status||'Active'}</span></div></div>
+      <div class="info-row"><div class="info-key">Materials</div><div class="info-val">${mats.length} catalogued</div></div>
+      <div class="info-row"><div class="info-key">Started</div><div class="info-val">${fmtDate(p.createdAt)}</div></div>
+      ${mats.length ? `<div class="section-lbl">Your Materials</div>
+        <table class="tbl">
+          ${mats.map(m=>`<tr><td><div class="mat-name">${m.name}</div></td><td>${tagHtml(m.type)}</td><td style="font-size:11px">${statusDot(m.status)}</td></tr>`).join('')}
+        </table>` : ''}
+    </div>`);
+}
+
+async function openClientMaterialSheet(materialId) {
+  const snap = await window.FB.getDoc(window.FB.doc(window.FB.db,'materials',materialId));
+  if (!snap.exists()) return;
+  const m = {id:snap.id,...snap.data()};
+  openSheet(`
+    <div class="sheet-head">
+      <div><div class="sheet-title">${m.name}</div></div>
+      <button class="sheet-close" onclick="closeSheetDirect()">×</button>
+    </div>
+    <div class="sheet-body">
+      <div style="display:flex;gap:6px;margin-bottom:14px">${tagHtml(m.type)}<span class="badge ${m.signoffStatus==='Approved'?'badge-green':'badge-amber'}">${m.signoffStatus}</span></div>
+      <div class="info-row"><div class="info-key">Location</div><div class="info-val">${m.locationInStructure||'—'}</div></div>
+      <div class="info-row"><div class="info-key">Condition</div><div class="info-val">${m.condition||'—'}</div></div>
+      <div class="info-row"><div class="info-key">Future Use</div><div class="info-val">${(m.futureUse||[]).join(', ')||'Pending assessment'}</div></div>
+      ${m.dimensions ? `<div class="info-row"><div class="info-key">Dimensions</div><div class="info-val">${m.dimensions}</div></div>` : ''}
+      ${m.notes ? `<div class="info-row"><div class="info-key">Notes</div><div class="info-val">${m.notes}</div></div>` : ''}
+    </div>`);
+}
+
+function openAddJournalSheet() {
+  openAddJournalEntryForClient(window.currentUser.email, window.currentUser.name);
+}
+
+function openAddJournalEntryForClient(clientEmail, clientName) {
+  openSheet(`
+    <div class="sheet-head">
+      <div><div class="sheet-title">Journal Entry</div><div style="font-size:11px;color:var(--stone)">${clientName||clientEmail}</div></div>
+      <button class="sheet-close" onclick="closeSheetDirect()">×</button>
+    </div>
+    <div class="sheet-body">
+      <div class="form-group"><label class="form-label">Title</label><input class="form-input" id="je-title" placeholder="e.g. Materials assessment complete"></div>
+      <div class="form-group"><label class="form-label">Entry</label><textarea class="form-textarea" id="je-body" style="min-height:120px" placeholder="What happened today, what was decided, what's next..."></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Media Link (optional)</label><input class="form-input" id="je-photo" placeholder="https://..."></div>
+        <div class="form-group"><label class="form-label">Milestone?</label>
+          <select class="form-select" id="je-milestone"><option value="">No</option><option value="true">Yes — mark as milestone</option></select>
+        </div>
+      </div>
+      <button class="btn btn-timber btn-full" onclick="saveJournalEntry('${clientEmail}','${clientName}')">Save Entry</button>
+    </div>`);
+}
+
+async function saveJournalEntry(clientEmail, clientName) {
+  const title = document.getElementById('je-title').value.trim();
+  const body  = document.getElementById('je-body').value.trim();
+  if (!body) { toast('Please write an entry'); return; }
+  try {
+    await window.FB.addDoc(window.FB.collection(window.FB.db,'journal'), {
+      clientEmail, clientName,
+      title, body,
+      photoLinks: document.getElementById('je-photo').value,
+      milestone: document.getElementById('je-milestone').value === 'true',
+      authorName: window.currentUser.name || window.currentUser.email,
+      authorRole: window.currentUser.role,
+      createdAt: window.FB.serverTimestamp(),
+    });
+    closeSheetDirect();
+    toast('Journal entry saved ✓');
+    if (state.currentPage === 'my-journal') renderMyJournal();
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+function openAddProductSheet() { openEditProductSheet(null); }
+
+function openEditProductSheet(productId) {
+  openSheet(`
+    <div class="sheet-head">
+      <div><div class="sheet-title">${productId ? 'Edit Product' : 'Add Product'}</div></div>
+      <button class="sheet-close" onclick="closeSheetDirect()">×</button>
+    </div>
+    <div class="sheet-body">
+      <div class="form-group"><label class="form-label">Product Name</label><input class="form-input" id="pd-name" placeholder="e.g. Dining Table — 6 Seater"></div>
+      <div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" id="pd-desc" placeholder="What this product is, how it's made, what materials it requires..."></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Price Range</label><input class="form-input" id="pd-price" placeholder="e.g. $4,500 – $8,000"></div>
+        <div class="form-group"><label class="form-label">Lead Time</label><input class="form-input" id="pd-lead" placeholder="e.g. 6–10 weeks"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Visibility</label>
+        <select class="form-select" id="pd-visible"><option value="true">Visible to paid subscribers</option><option value="false">Hidden</option></select>
+      </div>
+      <button class="btn btn-timber btn-full" onclick="saveProduct('${productId||''}')">Save Product</button>
+    </div>`);
+}
+
+async function saveProduct(productId) {
+  const name = document.getElementById('pd-name').value.trim();
+  if (!name) { toast('Product name required'); return; }
+  const data = {
+    name, description: document.getElementById('pd-desc').value,
+    priceRange: document.getElementById('pd-price').value,
+    leadTime: document.getElementById('pd-lead').value,
+    visible: document.getElementById('pd-visible').value === 'true',
+    updatedAt: window.FB.serverTimestamp(),
+  };
+  try {
+    if (productId) await window.FB.updateDoc(window.FB.doc(window.FB.db,'products',productId), data);
+    else { data.createdAt = window.FB.serverTimestamp(); await window.FB.addDoc(window.FB.collection(window.FB.db,'products'), data); }
+    closeSheetDirect();
+    toast('Product saved ✓');
+    renderProducts();
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+function openAllProjectsSheet() {}
+async function renderAllProjects() {
+  document.getElementById('topbarRight').innerHTML = '';
+  document.getElementById('mainContent').innerHTML = '<div class="spinner"></div>';
+  try {
+    const snap = await window.FB.getDocs(window.FB.collection(window.FB.db,'projects'));
+    state.projects = snap.docs.map(d=>({id:d.id,...d.data()}));
+    const clientsSnap = await window.FB.getDocs(window.FB.collection(window.FB.db,'clients'));
+    state.clients = clientsSnap.docs.map(d=>({id:d.id,...d.data()}));
+    document.getElementById('mainContent').innerHTML = `<div class="fu">
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">All Projects (${state.projects.length})</div></div>
+        ${state.projects.length ? `<table class="tbl">
+          <tr><th>Project</th><th>Client</th><th>Type</th><th>Status</th><th>Progress</th></tr>
+          ${state.projects.map(p=>{
+            const client = state.clients.find(c=>c.id===p.clientId);
+            return `<tr onclick="openProjectSheet('${p.id}')">
+              <td><div class="mat-name">${p.name||'Unnamed'}</div><div class="mat-origin">${p.address||''}</div></td>
+              <td style="font-size:12px">${client?.name||p.clientName||'—'}</td>
+              <td style="font-size:12px">${p.type||'—'}</td>
+              <td><span class="badge ${p.status==='Active'?'badge-green':p.status==='Complete'?'badge-moss':'badge-amber'}">${p.status||'Active'}</span></td>
+              <td><div class="prog-bar" style="width:80px;margin:0"><div class="prog-fill" style="width:${p.progress||5}%"></div></div></td>
+            </tr>`;
+          }).join('')}
+        </table>` : '<div class="panel-body"><div style="font-size:12px;color:var(--stone)">No projects yet.</div></div>'}
+      </div></div>`;
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+// ─── ACCOUNT SHEET ────────────────────────────────────────────────────────────
+function showAccountSheet() {
+  const u = window.currentUser;
+  openSheet(`
+    <div class="sheet-head">
+      <div><div class="sheet-title">Account</div></div>
+      <button class="sheet-close" onclick="closeSheetDirect()">×</button>
+    </div>
+    <div class="sheet-body">
+      <div class="info-row"><div class="info-key">Name</div><div class="info-val">${u.name||'—'}</div></div>
+      <div class="info-row"><div class="info-key">Email</div><div class="info-val">${u.email||'—'}</div></div>
+      <div class="info-row"><div class="info-key">Role</div><div class="info-val">${u.role||'client'}</div></div>
+      <div class="info-row"><div class="info-key">Plan</div><div class="info-val">${u.subscriptionTier||'free'}</div></div>
+      <div class="divider"></div>
+      <button class="btn btn-danger btn-full" onclick="handleSignOut()">Sign Out</button>
+    </div>`);
+}
+
+async function handleSignOut() {
+  try { await window.FB.signOut(window.FB.auth); closeSheetDirect(); }
+  catch(e) { toast('Error: ' + e.message); }
+}
+
+// ─── FIRST TIME: MAKE DAVE ADMIN ─────────────────────────────────────────────
+// When Dave first signs in, run this once from browser console:
+// await window.FB.updateDoc(window.FB.doc(window.FB.db,'users', window.currentUser.uid), {role:'admin',name:'Dave'})
+// Then refresh the page.
+window._makeAdmin = async () => {
+  if (!window.currentUser) { alert('Not signed in'); return; }
+  try {
+    await db.collection('users').doc(window.currentUser.uid).set({
+      uid: window.currentUser.uid,
+      email: window.currentUser.email,
+      name: 'Dave',
+      role: 'admin',
+      subscriptionTier: 'paid',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    alert('Done! Refresh the page.');
+  } catch(e) { alert('Error: ' + e.message); }
+};
+</script>
+</body>
+</html>
