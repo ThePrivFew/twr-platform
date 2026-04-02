@@ -890,6 +890,7 @@ function setupShell(user) {
   // Build nav
   const adminNav = [
     { id:'dashboard', icon:'grid', label:'Dashboard' },
+    { id:'quick-log', icon:'layers', label:'Quick Log', section:'Field' },
     { id:'clients',   icon:'users', label:'Clients', section:'Clients' },
     { id:'briefs',    icon:'inbox', label:'Incoming Briefs', badge:'briefs' },
     { id:'projects',  icon:'folder', label:'All Projects', section:'Projects' },
@@ -956,7 +957,7 @@ function svgIcon(name) {
 
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
 const pageTitles = {
-  dashboard:'Dashboard', clients:'Clients', briefs:'Incoming Briefs',
+  dashboard:'Dashboard', 'quick-log':'Quick Log', clients:'Clients', briefs:'Incoming Briefs',
   projects:'All Projects', materials:'Material Library', signoffs:'Signoffs',
   products:'Product Catalogue', stories:'Story Archive', stats:'Stats & Reports',
   'my-overview':'My Overview', 'my-brief':'My Brief', 'my-materials':'My Materials',
@@ -974,6 +975,7 @@ function navTo(page) {
 
   const renderers = {
     dashboard: renderAdminDashboard,
+    'quick-log': renderQuickLog,
     clients:   renderClients,
     briefs:    renderBriefs,
     projects:  renderAllProjects,
@@ -996,6 +998,59 @@ function navTo(page) {
 }
 
 // ─── ADMIN: DASHBOARD ────────────────────────────────────────────────────────
+
+async function renderQuickLog() {
+  document.getElementById('topbarRight').innerHTML = '';
+  document.getElementById('pageSub').textContent = 'Log materials on the go';
+  if (!state.projects.length) {
+    try {
+      var s = await window.FB.getDocs(window.FB.collection(window.FB.db, 'projects'));
+      state.projects = s.docs.map(function(d) { return Object.assign({id:d.id}, d.data()); });
+    } catch(e) {}
+  }
+  var projOptions = state.projects.map(function(p) {
+    return '<option value="' + p.id + '">' + p.name + '</option>';
+  }).join('');
+
+  document.getElementById('mainContent').innerHTML = '<div class="fu" style="max-width:480px;margin:0 auto"><div class="panel"><div class="panel-head"><div class="panel-title">Log a Material</div><div style="font-size:11px;color:var(--stone)">Fast field entry</div></div><div class="panel-body"><div class="form-group"><label class="form-label">What did you find?</label><input class="form-input" id="ql-name" placeholder="e.g. Spotted Gum floorboards" style="font-size:16px;padding:12px" autofocus></div><div class="form-group"><label class="form-label">Project</label><select class="form-select" id="ql-project" style="font-size:16px;padding:12px"><option value="">Select project...</option>' + projOptions + '</select></div><div class="form-row"><div class="form-group"><label class="form-label">Type</label><select class="form-select" id="ql-type" style="font-size:16px;padding:10px"><option>Timber</option><option>Masonry</option><option>Metal</option><option>Glass</option><option>Fixtures &amp; fittings</option><option>Other</option></select></div><div class="form-group"><label class="form-label">Condition</label><select class="form-select" id="ql-condition" style="font-size:16px;padding:10px"><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div></div><div class="form-group"><label class="form-label">Location in structure</label><input class="form-input" id="ql-location" placeholder="e.g. Kitchen, Roof, Hallway" style="font-size:16px;padding:12px"></div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="ql-notes" placeholder="Species, dimensions, anything notable..." style="font-size:16px;min-height:80px"></textarea></div><div class="form-group"><label class="form-label">Photo / Video Link</label><input class="form-input" id="ql-media" placeholder="Google Photos, Drive, YouTube..." style="font-size:16px;padding:12px"></div><div class="form-group"><label class="form-label">Future Use Ideas</label><input class="form-input" id="ql-futureuse" placeholder="e.g. Dining table, Bench seat" style="font-size:16px;padding:12px"></div><button class="btn btn-timber btn-full" style="padding:16px;font-size:16px;margin-top:8px" onclick="saveQuickLog()">&#10003; Save Material</button><div id="ql-saved" style="text-align:center;padding:12px;font-size:13px;color:var(--moss);display:none">&#10003; Saved — add another</div></div></div></div>';
+}
+
+async function saveQuickLog() {
+  var name = document.getElementById('ql-name').value.trim();
+  if (!name) { toast('Enter a material name'); return; }
+  var projEl = document.getElementById('ql-project');
+  var projId = projEl.value;
+  var projName = projEl.options[projEl.selectedIndex] ? projEl.options[projEl.selectedIndex].text.replace(' (select)', '') : '';
+  var futureUse = document.getElementById('ql-futureuse').value.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+  try {
+    await window.FB.addDoc(window.FB.collection(window.FB.db,'materials'), {
+      name: name,
+      type: document.getElementById('ql-type').value,
+      condition: document.getElementById('ql-condition').value,
+      projectId: projId,
+      projectName: projName,
+      clientEmail: '',
+      locationInStructure: document.getElementById('ql-location').value.trim(),
+      status: 'Available',
+      signoffStatus: 'Pending',
+      futureUse: futureUse,
+      notes: document.getElementById('ql-notes').value.trim(),
+      videoLinks: document.getElementById('ql-media').value.trim(),
+      createdAt: window.FB.serverTimestamp(),
+      createdBy: window.currentUser ? window.currentUser.uid : '',
+    });
+    document.getElementById('ql-name').value = '';
+    document.getElementById('ql-location').value = '';
+    document.getElementById('ql-notes').value = '';
+    document.getElementById('ql-media').value = '';
+    document.getElementById('ql-futureuse').value = '';
+    var saved = document.getElementById('ql-saved');
+    if (saved) { saved.style.display = 'block'; setTimeout(function(){ saved.style.display='none'; }, 2000); }
+    document.getElementById('ql-name').focus();
+    toast('Saved ✓');
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
 async function renderAdminDashboard() {
   document.getElementById('pageSub').textContent = 'Good ' + (new Date().getHours() < 12 ? 'morning' : 'afternoon') + ', Dave';
   document.getElementById('topbarRight').innerHTML = `
@@ -2450,7 +2505,8 @@ function openInviteClientSheet(clientId) {
   const portalUrl = 'https://theprivfew.github.io/twr-platform';
   const subject = encodeURIComponent('Your Wattle Road client portal is ready');
   const body = encodeURIComponent('Hi ' + (client.name ? client.name.split(' ')[0] : 'there') + ',\n\nYour Wattle Road client portal is now set up and ready for you.\n\nYou can access it here:\n' + portalUrl + '\n\nTo sign in, you\'ll need to create a password for your account using this email address: ' + client.email + '\n\nOnce you\'re in, you\'ll be able to:\n- View your catalogued materials\n- Submit your project brief\n- Follow your project\'s progress\n- Access your provenance record when it\'s ready\n\nIf you have any questions, just reply to this email.\n\nDave\nThe Wattle Road\nthewattleroad.com.au');
-  openSheet('<div class="sheet-head"><div><div class="sheet-title">Invite Client</div><div style="font-size:11px;color:var(--stone)">' + (client.name||client.email||'') + '</div></div><button class="sheet-close" onclick="closeSheetDirect()">×</button></div><div class="sheet-body"><div style="background:var(--cream);border-radius:var(--r);padding:14px 16px;margin-bottom:16px"><div style="font-size:12px;font-weight:500;color:var(--bark);margin-bottom:6px">Portal URL</div><div style="font-size:12px;color:var(--stone);word-break:break-all">' + portalUrl + '</div></div><div style="font-size:13px;color:var(--stone);line-height:1.6;margin-bottom:16px">Send ' + (client.name||'the client') + ' an invitation to access their portal. They\'ll use <strong>' + (client.email||'their email') + '</strong> to sign in — they\'ll need to use the Request Access option to set a password.</div><div style="display:flex;flex-direction:column;gap:8px"><a href="mailto:' + (client.email||'') + '?subject=' + subject + '&body=' + body + '" class="btn btn-timber btn-full" style="text-align:center;text-decoration:none">Open in Mail App</a><button class="btn btn-full" onclick="copyInviteLink()">Copy Portal Link</button></div><div class="divider"></div><div style="font-size:12px;color:var(--stone);line-height:1.6"><strong style="color:var(--bark)">How it works:</strong> The client goes to the portal URL and clicks Request Access to create a password for their email. Once they\'re in, they\'ll see their project automatically because it\'s linked to their email address.</div></div>');
+  const gmailUrl = 'https://mail.google.com/mail/?view=cm&to=' + encodeURIComponent(client.email||'') + '&su=' + subject + '&body=' + body;
+  openSheet('<div class="sheet-head"><div><div class="sheet-title">Invite Client</div><div style="font-size:11px;color:var(--stone)">' + (client.name||client.email||'') + '</div></div><button class="sheet-close" onclick="closeSheetDirect()">×</button></div><div class="sheet-body"><div style="background:var(--cream);border-radius:var(--r);padding:14px 16px;margin-bottom:16px"><div style="font-size:12px;font-weight:500;color:var(--bark);margin-bottom:6px">Portal URL</div><div style="font-size:12px;color:var(--stone);word-break:break-all">' + portalUrl + '</div></div><div style="font-size:13px;color:var(--stone);line-height:1.6;margin-bottom:16px">Send ' + (client.name||'the client') + ' an invitation to access their portal. They\'ll use <strong>' + (client.email||'their email') + '</strong> to sign in — they\'ll need to use the Request Access option to set a password.</div><div style="display:flex;flex-direction:column;gap:8px"><a href="' + gmailUrl + '" target="_blank" class="btn btn-timber btn-full" style="text-align:center;text-decoration:none">Open in Gmail</a><button class="btn btn-full" style="margin-top:0" onclick="window.location.href=\'mailto:' + (client.email||'') + '?subject=' + subject + '&body=' + body + '\'">Open in Mail App</button><button class="btn btn-full" onclick="copyInviteLink()">Copy Portal Link</button></div><div class="divider"></div><div style="font-size:12px;color:var(--stone);line-height:1.6"><strong style="color:var(--bark)">How it works:</strong> The client goes to the portal URL and clicks Request Access to create a password for their email. Once they\'re in, they\'ll see their project automatically because it\'s linked to their email address.</div></div>');
 }
 
 function copyInviteLink() {
