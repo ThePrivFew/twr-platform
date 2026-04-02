@@ -2339,4 +2339,11 @@ window._makeAdmin = async () => {
       name: 'Dave',
       role: 'admin',
       subscriptionTier: 'paid',
-      createdAt: firebase.f
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    alert('Done! Refresh the page.');
+  } catch(e) { alert('Error: ' + e.message); }
+};
+</script>
+</body>
+</html>
